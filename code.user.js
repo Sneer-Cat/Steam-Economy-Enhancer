@@ -618,10 +618,10 @@
     //
     //{
     //"success" : 1,
-    //"sell_order_table" : "<table class=\"market_commodity_orders_table\"><tr><th align=\"right\">Price<\/th><th align=\"right\">Quantity<\/th><\/tr><tr><td align=\"right\" class=\"\">0,04\u20ac<\/td><td align=\"right\">311<\/td><\/tr><tr><td align=\"right\" class=\"\">0,05\u20ac<\/td><td align=\"right\">895<\/td><\/tr><tr><td align=\"right\" class=\"\">0,06\u20ac<\/td><td align=\"right\">495<\/td><\/tr><tr><td align=\"right\" class=\"\">0,07\u20ac<\/td><td align=\"right\">174<\/td><\/tr><tr><td align=\"right\" class=\"\">0,08\u20ac<\/td><td align=\"right\">49<\/td><\/tr><tr><td align=\"right\" class=\"\">0,09\u20ac or more<\/td><td align=\"right\">41<\/td><\/tr><\/table>",
+    //"sell_order_table" : "<table class=\"market_commodity_orders_table\"><tr><th align=\"right\">售价\/th><th align=\"right\">数量<\/th><\/tr><tr><td align=\"right\" class=\"\">0,04\u20ac<\/td><td align=\"right\">311<\/td><\/tr><tr><td align=\"right\" class=\"\">0,05\u20ac<\/td><td align=\"right\">895<\/td><\/tr><tr><td align=\"right\" class=\"\">0,06\u20ac<\/td><td align=\"right\">495<\/td><\/tr><tr><td align=\"right\" class=\"\">0,07\u20ac<\/td><td align=\"right\">174<\/td><\/tr><tr><td align=\"right\" class=\"\">0,08\u20ac<\/td><td align=\"right\">49<\/td><\/tr><tr><td align=\"right\" class=\"\">0,09\u20ac 以上的<\/td><td align=\"right\">41<\/td><\/tr><\/table>",
     //"sell_order_summary" : "<span class=\"market_commodity_orders_header_promote\">1965<\/span> for sale starting at <span class=\"market_commodity_orders_header_promote\">0,04\u20ac<\/span>",
-    //"buy_order_table" : "<table class=\"market_commodity_orders_table\"><tr><th align=\"right\">Price<\/th><th align=\"right\">Quantity<\/th><\/tr><tr><td align=\"right\" class=\"\">0,03\u20ac<\/td><td align=\"right\">93<\/td><\/tr><\/table>",
-    //"buy_order_summary" : "<span class=\"market_commodity_orders_header_promote\">93<\/span> requests to buy at <span class=\"market_commodity_orders_header_promote\">0,03\u20ac<\/span> or lower",
+    //"buy_order_table" : "<table class=\"market_commodity_orders_table\"><tr><th align=\"right\">售价<\/th><th align=\"right\">数量<\/th><\/tr><tr><td align=\"right\" class=\"\">0,03\u20ac<\/td><td align=\"right\">93<\/td><\/tr><\/table>",
+    //"buy_order_summary" : "<span class=\"market_commodity_orders_header_promote\">93<\/span> requests to buy at <span class=\"market_commodity_orders_header_promote\">0,03\u20ac<\/span>  以下的",
     //"highest_buy_order" : "3",
     //"lowest_sell_order" : "4",
     //"buy_order_graph" : [[0.03, 93, "93 buy orders at 0,03\u20ac or higher"]],
@@ -996,7 +996,7 @@
                         logDOM(padLeft +
                             ' - ' +
                             itemName +
-                            ' added to market for ' +
+                            ' 已添加至市场，售价为 ' +
                             (market.getPriceIncludingFees(task.sellPrice) / 100.0).toFixed(2) +
                             currencySymbol +
                             '.');
@@ -1008,11 +1008,11 @@
                             logDOM(padLeft +
                                 ' - ' +
                                 itemName +
-                                ' not added to market because ' +
+                                ' 上架市场失败，因为 ' +
                                 data.responseJSON.message[0].toLowerCase() +
                                 data.responseJSON.message.slice(1));
                         else
-                            logDOM(padLeft + ' - ' + itemName + ' not added to market.');
+                            logDOM(padLeft + ' - ' + itemName + ' 上架市场失败。');
 
                         $('#' + task.item.appid + '_' + task.item.contextid + '_' + itemId)
                             .css('background', COLOR_ERROR);
@@ -1540,17 +1540,17 @@
             var showMiscOptions = appId == 753;
 
             var sellButtons = $('<div id="inventory_sell_buttons" style="margin-bottom:12px;">' +
-                '<a class="btn_green_white_innerfade btn_medium_wide sell_all"><span>Sell All Items</span></a>&nbsp;&nbsp;&nbsp;' +
-                '<a class="btn_green_white_innerfade btn_medium_wide sell_selected"><span>Sell Selected Items</span></a>&nbsp;&nbsp;&nbsp;' +
+                '<a class="btn_green_white_innerfade btn_medium_wide sell_all"><span>出售全部物品</span></a>&nbsp;&nbsp;&nbsp;' +
+                '<a class="btn_green_white_innerfade btn_medium_wide sell_selected"><span>出售选定物品</span></a>&nbsp;&nbsp;&nbsp;' +
                 (showMiscOptions
-                    ? '<a class="btn_green_white_innerfade btn_medium_wide turn_into_gems"><span>Turn Selected Items Into Gems</span></a>&nbsp;&nbsp;&nbsp;' +
-                    '<a class="btn_darkblue_white_innerfade btn_medium_wide sell_all_cards"><span>Sell All Cards</span></a>&nbsp;&nbsp;&nbsp;'
+                    ? '<a class="btn_green_white_innerfade btn_medium_wide turn_into_gems"><span>将选定物品分解为宝石</span></a>&nbsp;&nbsp;&nbsp;' +
+                    '<a class="btn_darkblue_white_innerfade btn_medium_wide sell_all_cards"><span>出售全部卡牌</span></a>&nbsp;&nbsp;&nbsp;'
                     : '') +
                 '</div>');
 
             var reloadButton =
                 $(
-                    '<a id="inventory_reload_button" class="btn_darkblue_white_innerfade btn_medium_wide reload_inventory" style="margin-right:12px"><span>Reload Inventory</span></a>');
+                    '<a id="inventory_reload_button" class="btn_darkblue_white_innerfade btn_medium_wide reload_inventory" style="margin-right:12px"><span>重新加载库存</span></a>');
 
             $('#inventory_logos')[0].style.height = 'auto';
 
@@ -1895,7 +1895,7 @@
                                 ? '-'
                                 : ((histogram.highest_buy_order / 100) + currencySymbol));
                             $('.market_table_value > span:nth-child(1) > span:nth-child(1) > span:nth-child(1)',
-                                listingUI).append(' ➤ <span title="This is likely the highest buy order price.">' +
+                                listingUI).append(' ➤ <span title="这可能是当前最高的买价">' +
                                 highestBuyOrderPrice +
                                 '</span>');
 
@@ -1930,7 +1930,7 @@
                             listingUI.addClass('price_' + sellPriceWithOffset);
 
                             $('.market_listing_my_price', listingUI).last().prop('title',
-                                'The best price is ' + (sellPriceWithoutOffsetWithFees / 100.0) + currencySymbol + '.');
+                                '最好的价格是 ' + (sellPriceWithoutOffsetWithFees / 100.0) + currencySymbol + '.');
 
                             if (sellPriceWithoutOffsetWithFees < price) {
                                 logConsole('Sell price is too high.');
@@ -2329,7 +2329,7 @@
                 // Show the spinner so the user knows that something is going on.
                 $('.my_market_header').eq(0).append('<div id="market_listings_spinner">' +
                     spinnerBlock +
-                    '<div style="text-align:center">Loading market listings</div>' +
+                    '<div style="text-align:center">加载交易列表中...</div>' +
                     '</div>');
 
                 while (currentCount < totalCount) {
@@ -2378,7 +2378,7 @@
                 var invert = $('.market_select_item:checked', selectionGroup).length == $('.market_select_item', selectionGroup).length;
                 if ($('.market_select_item', selectionGroup).length == 0) // If there are no items to select, keep it at Select all.
                     invert = false;
-                $('.select_all > span', selectionGroup).text(invert ? 'Deselect all' : 'Select all');
+                $('.select_all > span', selectionGroup).text(invert ? '取消选择' : '选择全部');
             });
         }
 
@@ -2514,22 +2514,22 @@
             $('.my_market_header').first().append(
                 '<div class="market_listing_buttons">' +
                 '<a class="item_market_action_button item_market_action_button_green select_all market_listing_button">' +
-                '<span class="item_market_action_button_contents" style="text-transform:none">Select all</span>' +
+                '<span class="item_market_action_button_contents" style="text-transform:none">选择全部</span>' +
                 '</a>' +
                 '<span class="separator-small"></span>' +
                 '<a class="item_market_action_button item_market_action_button_green remove_selected market_listing_button">' +
-                '<span class="item_market_action_button_contents" style="text-transform:none">Remove selected</span>' +
+                '<span class="item_market_action_button_contents" style="text-transform:none">下架选定物品</span>' +
                 '</a>' +
                 '<a class="item_market_action_button item_market_action_button_green relist_selected market_listing_button market_listing_button_right">' +
-                '<span class="item_market_action_button_contents" style="text-transform:none">Relist selected</span>' +
+                '<span class="item_market_action_button_contents" style="text-transform:none">重新上架选定物品</span>' +
                 '</a>' +
                 '<span class="separator-small"></span>' +
                 '<a class="item_market_action_button item_market_action_button_green relist_overpriced market_listing_button market_listing_button_right">' +
-                '<span class="item_market_action_button_contents" style="text-transform:none">Relist overpriced</span>' +
+                '<span class="item_market_action_button_contents" style="text-transform:none">重新上架高价物品</span>' +
                 '</a>' +
                 '<span class="separator-small"></span>' +
                 '<a class="item_market_action_button item_market_action_button_green select_overpriced market_listing_button market_listing_button_right">' +
-                '<span class="item_market_action_button_contents" style="text-transform:none">Select overpriced</span>' +
+                '<span class="item_market_action_button_contents" style="text-transform:none">选择高价物品</span>' +
                 '</a>' +
                 '</div>');
 
@@ -2537,11 +2537,11 @@
             $('.my_market_header').slice(1).append(
                 '<div class="market_listing_buttons">' +
                 '<a class="item_market_action_button item_market_action_button_green select_all market_listing_button">' +
-                '<span class="item_market_action_button_contents" style="text-transform:none">Select all</span>' +
+                '<span class="item_market_action_button_contents" style="text-transform:none">选择全部</span>' +
                 '</a>' +
                 '<span class="separator-large"></span>' +
                 '<a class="item_market_action_button item_market_action_button_green remove_selected market_listing_button">' +
-                '<span class="item_market_action_button_contents" style="text-transform:none">Remove selected</span>' +
+                '<span class="item_market_action_button_contents" style="text-transform:none">删除选定</span>' +
                 '</a>' +
                 '</div>');
 
@@ -2764,41 +2764,41 @@
     function openSettings() {
         var price_options = $('<div id="price_options">' +
             '<div style="margin-bottom:6px;">' +
-            'Calculate prices as the:&nbsp;<select class="price_option_input" style="background-color: black;color: white;border: transparent;" id="' + SETTING_PRICE_ALGORITHM + '">' +
-            '<option value="1"' + (getSettingWithDefault(SETTING_PRICE_ALGORITHM) == 1 ? 'selected="selected"' : '') + '>maximum of the average (12 hours) and lowest listing</option>' +
-            '<option value="2" ' + (getSettingWithDefault(SETTING_PRICE_ALGORITHM) == 2 ? 'selected="selected"' : '') + '>lowest listing</option>' +
+            '基准价格计算方式:&nbsp;<select class="price_option_input" style="background-color: black;color: white;border: transparent;" id="' + SETTING_PRICE_ALGORITHM + '">' +
+            '<option value="1"' + (getSettingWithDefault(SETTING_PRICE_ALGORITHM) == 1 ? 'selected="selected"' : '') + '>过去12小时的均价 和 当前最低售价 两个数间取大值</option>' +
+            '<option value="2" ' + (getSettingWithDefault(SETTING_PRICE_ALGORITHM) == 2 ? 'selected="selected"' : '') + '>当前最低售价</option>' +
             '</select>' +
             '<br/>' +
             '</div>' +
             '<div style="margin-bottom:6px;">' +
-            'The value to add to the calculated price (minimum and maximum are respected):&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_PRICE_OFFSET + '" value=' + getSettingWithDefault(SETTING_PRICE_OFFSET) + '>' +
+            '自动调整价格 (请谨慎对待):&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_PRICE_OFFSET + '" value=' + getSettingWithDefault(SETTING_PRICE_OFFSET) + '>' +
             '<br/>' +
             '</div>' +
             '<div style="margin-top:6px">' +
-            'Use the second lowest listing when the lowest listing has a low quantity:&nbsp;<input class="price_option_input" style="background-color: black;color: white;border: transparent;" type="checkbox" id="' + SETTING_PRICE_IGNORE_LOWEST_Q + '" ' + (getSettingWithDefault(SETTING_PRICE_IGNORE_LOWEST_Q) == 1 ? 'checked=""' : '') + '>' +
+            '当当前最低售价较少时，使用第二低售价。:&nbsp;<input class="price_option_input" style="background-color: black;color: white;border: transparent;" type="checkbox" id="' + SETTING_PRICE_IGNORE_LOWEST_Q + '" ' + (getSettingWithDefault(SETTING_PRICE_IGNORE_LOWEST_Q) == 1 ? 'checked=""' : '') + '>' +
             '<br/>' +
             '</div>' +
             '<div style="margin-top:24px">' +
             '<div style="margin-bottom:6px;">' +
-            'Minimum:&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MIN_NORMAL_PRICE + '" value=' + getSettingWithDefault(SETTING_MIN_NORMAL_PRICE) + '>&nbsp;' +
-            'and maximum:&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MAX_NORMAL_PRICE + '" value=' + getSettingWithDefault(SETTING_MAX_NORMAL_PRICE) + '>&nbsp;price for normal cards' +
+            '最低售价:&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MIN_NORMAL_PRICE + '" value=' + getSettingWithDefault(SETTING_MIN_NORMAL_PRICE) + '>&nbsp;' +
+            '最高售价:&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MAX_NORMAL_PRICE + '" value=' + getSettingWithDefault(SETTING_MAX_NORMAL_PRICE) + '>&nbsp;普通卡牌的售价' +
             '<br/>' +
             '</div>' +
             '<div style="margin-bottom:6px;">' +
-            'Minimum:&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MIN_FOIL_PRICE + '" value=' + getSettingWithDefault(SETTING_MIN_FOIL_PRICE) + '>&nbsp;' +
-            'and maximum:&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MAX_FOIL_PRICE + '" value=' + getSettingWithDefault(SETTING_MAX_FOIL_PRICE) + '>&nbsp;price for foil cards' +
+            '最低售价:&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MIN_FOIL_PRICE + '" value=' + getSettingWithDefault(SETTING_MIN_FOIL_PRICE) + '>&nbsp;' +
+            '最高售价:&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MAX_FOIL_PRICE + '" value=' + getSettingWithDefault(SETTING_MAX_FOIL_PRICE) + '>&nbsp;闪亮卡牌的售价' +
             '<br/>' +
             '</div>' +
             '<div style="margin-bottom:6px;">' +
-            'Minimum:&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MIN_MISC_PRICE + '" value=' + getSettingWithDefault(SETTING_MIN_MISC_PRICE) + '>&nbsp;' +
-            'and maximum:&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MAX_MISC_PRICE + '" value=' + getSettingWithDefault(SETTING_MAX_MISC_PRICE) + '>&nbsp;price for other items' +
+            '最低售价:&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MIN_MISC_PRICE + '" value=' + getSettingWithDefault(SETTING_MIN_MISC_PRICE) + '>&nbsp;' +
+            '最高售价:&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MAX_MISC_PRICE + '" value=' + getSettingWithDefault(SETTING_MAX_MISC_PRICE) + '>&nbsp;其他物品的售价' +
             '<br/>' +
             '</div>' +
             '<div style="margin-top:24px;margin-bottom:6px;">' +
-            'Market items per page:&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MARKET_PAGE_COUNT + '" value=' + getSettingWithDefault(SETTING_MARKET_PAGE_COUNT) + '>' +
+            '每页的物品数量:&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MARKET_PAGE_COUNT + '" value=' + getSettingWithDefault(SETTING_MARKET_PAGE_COUNT) + '>' +
             '<br/>' +
             '<div style="margin-top:6px;">' +
-            'Automatically relist overpriced market listings (slow on large inventories):&nbsp;<input id="' + SETTING_RELIST_AUTOMATICALLY + '" class="market_relist_auto" type="checkbox" ' + (getSettingWithDefault(SETTING_RELIST_AUTOMATICALLY) == 1 ? 'checked=""' : '') + '>' +
+            '自动重新上架售价过高的物品:&nbsp;<input id="' + SETTING_RELIST_AUTOMATICALLY + '" class="market_relist_auto" type="checkbox" ' + (getSettingWithDefault(SETTING_RELIST_AUTOMATICALLY) == 1 ? 'checked=""' : '') + '>' +
             '</label>' +
             '</div>' +
             '</div>' +
