@@ -1427,7 +1427,7 @@
                 else {
                     $('.sell_selected').show();
                     $('.sell_selected > span')
-                        .text('Sell ' + selectedItems + (selectedItems == 1 ? ' Item' : ' Items'));
+                        .text('出售 ' + selectedItems + (selectedItems == 1 ? ' 个物品' : ' 个物品'));
                 }
             });
         }
