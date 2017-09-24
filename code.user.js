@@ -1200,7 +1200,7 @@
                     $('#inventory_items_spinner').remove();
                     $('#inventory_sell_buttons').append('<div id="inventory_items_spinner">' +
                         spinnerBlock +
-                        '<div style="text-align:center">Processing ' + numberOfQueuedItems + ' items</div>' +
+                        '<div style="text-align:center">正在操作 ' + numberOfQueuedItems + ' 个物品</div>' +
                         '</div>');
                 }
             }, function () {
@@ -1242,7 +1242,7 @@
                 $('#inventory_items_spinner').remove();
                 $('#inventory_sell_buttons').append('<div id="inventory_items_spinner">' +
                     spinnerBlock +
-                    '<div style="text-align:center">Processing ' + numberOfQueuedItems + ' items</div>' +
+                    '<div style="text-align:center">正在操作 ' + numberOfQueuedItems + ' 个物品</div>' +
                     '</div>');
             }
         }
