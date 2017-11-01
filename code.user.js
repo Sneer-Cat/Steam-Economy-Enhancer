@@ -3,7 +3,7 @@
 // @namespace   https://github.com/Nuklon
 // @author      Nuklon
 // @license     MIT
-// @version     6.0.1
+// @version     6.2.1
 // @description Enhances the Steam Inventory and Steam Market.
 // @include     *://steamcommunity.com/id/*/inventory*
 // @include     *://steamcommunity.com/profiles/*/inventory*
@@ -51,6 +51,9 @@
     var marketLists = [];
     var totalNumberOfProcessedQueueItems = 0;
     var totalNumberOfQueuedItems = 0;
+    var totalPriceWithFeesOnMarket = 0;
+    var totalPriceWithoutFeesOnMarket = 0;
+    var totalScrap = 0;
 
     var spinnerBlock =
         '<div class="spinner"><div class="rect1"></div>&nbsp;<div class="rect2"></div>&nbsp;<div class="rect3"></div>&nbsp;<div class="rect4"></div>&nbsp;<div class="rect5"></div>&nbsp;</div>';
@@ -259,7 +262,7 @@
         return market.getPriceBeforeFees(highest);
     }
 
-    // Calculates the listing price, before the fee.
+    // Calculates the listing price, before the fee.    
     function calculateListingPriceBeforeFees(histogram) {
         if (histogram == null ||
             histogram.lowest_sell_order == null ||
@@ -524,6 +527,38 @@
         //http://steamcommunity.com/my/ajaxgrindintogoo/
     }
 
+
+    // Unpacks the booster pack.
+    SteamMarket.prototype.unpackBoosterPack = function (item, callback) {
+        try {
+            var sessionId = readCookie('sessionid');
+            $.ajax({
+                type: "POST",
+                url: this.inventoryUrlBase + 'ajaxunpackbooster/',
+                data: {
+                    sessionid: sessionId,
+                    appid: item.market_fee_app,
+                    communityitemid: item.assetid
+                },
+                success: function (data) {
+                    callback(ERROR_SUCCESS, data);
+                },
+                error: function (data) {
+                    return callback(ERROR_FAILED, data);
+                },
+                crossDomain: true,
+                xhrFields: { withCredentials: true },
+                dataType: 'json'
+            });
+        } catch (e) {
+            return callback(ERROR_FAILED);
+        }
+
+        //sessionid = xyz
+        //appid = 535690
+        //communityitemid = 4830605461
+        //http://steamcommunity.com/my/ajaxunpackbooster/
+    }
     // Get the current price history for an item.
     SteamMarket.prototype.getCurrentPriceHistory = function (appid, market_name, callback) {
         var url = window.location.protocol +
@@ -754,8 +789,8 @@
         while (previousName != name) {
             previousName = name;
             name = name.replace('?', '%3F')
-                       .replace('#', '%23')
-                       .replace('	', '%09');
+                .replace('#', '%23')
+                .replace('	', '%09');
         }
         return name;
     }
@@ -984,6 +1019,34 @@
 
     //#region Inventory
     if (currentPage == PAGE_INVENTORY) {
+
+        function onQueueDrain() {
+            if (itemQueue.length() == 0 && sellQueue.length() == 0 && scrapQueue.length() == 0 && boosterQueue.length() == 0) {
+                $('#inventory_items_spinner').remove();
+            }
+        }
+
+        function updateTotals() {
+            if ($('#loggerTotal').length == 0) {
+                $(logger).parent().append('<div id="loggerTotal"></div>');
+            }
+
+            var totals = document.getElementById('loggerTotal');
+            totals.innerHTML = '';
+
+            if (totalPriceWithFeesOnMarket > 0) {
+                totals.innerHTML += '<div><strong>Total listed for ' +
+                    (totalPriceWithFeesOnMarket / 100.0).toFixed(2) +
+                    currencySymbol +
+                    ', you will receive ' +
+                    (totalPriceWithoutFeesOnMarket / 100).toFixed(2) +
+                    currencySymbol +
+                    '.</strong></div>';
+            }
+            if (totalScrap > 0) {
+                totals.innerHTML += '<div><strong>Total scrap ' + totalScrap + '.</strong></div>';
+            }
+        }
         var sellQueue = async.queue(function (task, next) {
             market.sellItem(task.item,
                 task.sellPrice,
@@ -1002,10 +1065,16 @@
                             ' 已添加至市场，售价为 ' +
                             (market.getPriceIncludingFees(task.sellPrice) / 100.0).toFixed(2) +
                             currencySymbol +
+                            ', you will receive ' +
+                            (task.sellPrice / 100.0).toFixed(2) + currencySymbol +
                             '.');
 
                         $('#' + task.item.appid + '_' + task.item.contextid + '_' + itemId)
                             .css('background', COLOR_SUCCESS);
+
+                        totalPriceWithoutFeesOnMarket += task.sellPrice;
+                        totalPriceWithFeesOnMarket += market.getPriceIncludingFees(task.sellPrice);
+                        updateTotals();
                     } else {
                         if (data != null && data.responseJSON != null && data.responseJSON.message != null) {
                             logDOM(padLeft +
@@ -1028,9 +1097,7 @@
             1);
 
         sellQueue.drain = function () {
-            if (itemQueue.length() == 0 && sellQueue.length() == 0 && scrapQueue.length() == 0) {
-                $('#inventory_items_spinner').remove();
-            }
+            onQueueDrain();
         }
 
         function sellAllItems(appId) {
@@ -1093,9 +1160,7 @@
         }, 1);
 
         scrapQueue.drain = function () {
-            if (itemQueue.length() == 0 && sellQueue.length() == 0 && scrapQueue.length() == 0) {
-                $('#inventory_items_spinner').remove();
-            }
+            onQueueDrain();
         }
 
         function scrapQueueWorker(item, callback) {
@@ -1136,31 +1201,68 @@
                             logDOM(padLeft + ' - ' + itemName + ' turned into ' + item.goo_value_expected + ' gems.');
                             $('#' + item.appid + '_' + item.contextid + '_' + itemId).css('background', COLOR_SUCCESS);
 
+                            totalScrap += item.goo_value_expected;
+                            updateTotals();
+
                             callback(true);
                         });
                 });
         }
 
+        var boosterQueue = async.queue(function (item, next) {
+            boosterQueueWorker(item, function (success) {
+                if (success) {
+                    setTimeout(function () { next(); }, 250);
+                } else {
+                    var delay = numberOfFailedRequests > 1
+                        ? getRandomInt(30000, 45000)
+                        : getRandomInt(1000, 1500);
+
+                    if (numberOfFailedRequests > 3)
+                        numberOfFailedRequests = 0;
+
+                    setTimeout(function () {
+                        next();
+                    }, delay);
+                }
+            });
+        }, 1);
+
+        boosterQueue.drain = function () {
+            onQueueDrain();
+        }
+
+        function boosterQueueWorker(item, callback) {
+            var failed = 0;
+            var itemName = item.name || item.description.name;
+            var itemId = item.assetid || item.id;
+
+            market.unpackBoosterPack(item,
+                function (err, goo) {
+                    totalNumberOfProcessedQueueItems++;
+
+                    var digits = getNumberOfDigits(totalNumberOfQueuedItems);
+                    var padLeft = padLeftZero('' + totalNumberOfProcessedQueueItems, digits) + ' / ' + totalNumberOfQueuedItems;
+
+                    if (err != ERROR_SUCCESS) {
+                        logConsole('Failed to unpack booster pack ' + itemName);
+                        logDOM(padLeft + ' - ' + itemName + ' not unpacked.');
+
+                        $('#' + item.appid + '_' + item.contextid + '_' + itemId).css('background', COLOR_ERROR);
+                        return callback(false);
+                    }
+
+                    logDOM(padLeft + ' - ' + itemName + ' unpacked.');
+                    $('#' + item.appid + '_' + item.contextid + '_' + itemId).css('background', COLOR_SUCCESS);
+
+                    callback(true);
+                });
+        }
+
+
         // Turns the selected items into gems.
         function turnSelectedItemsIntoGems() {
-            var ids = [];
-            $('.inventory_ctn').each(function () {
-                $(this).find('.inventory_page').each(function () {
-                    var inventory_page = this;
-
-                    $(inventory_page).find('.itemHolder').each(function () {
-                        if (!$(this).hasClass('ui-selected'))
-                            return;
-
-                        $(this).find('.item').each(function () {
-                            var matches = this.id.match(/_(\-?\d+)$/);
-                            if (matches) {
-                                ids.push(matches[1]);
-                            }
-                        });
-                    });
-                });
-            });
+            var ids = getSelectedItems();
 
             loadAllInventories().then(function () {
                 var items = getInventoryItems();
@@ -1201,6 +1303,56 @@
                     $('#inventory_sell_buttons').append('<div id="inventory_items_spinner">' +
                         spinnerBlock +
                         '<div style="text-align:center">正在操作 ' + numberOfQueuedItems + ' 个物品</div>' +
+                        '</div>');
+                }
+            }, function () {
+                logDOM('Could not retrieve the inventory...');
+            });
+        }
+
+        // Unpacks the selected booster packs.
+        function unpackSelectedBoosterPacks() {
+            var ids = getSelectedItems();
+
+            loadAllInventories().then(function () {
+                var items = getInventoryItems();
+
+                var numberOfQueuedItems = 0;
+                items.forEach(function (item) {
+                    // Ignored queued items.
+                    if (item.queued != null) {
+                        return;
+                    }
+
+                    if (item.owner_actions == null) {
+                        return;
+                    }
+
+                    var canOpenBooster = false;
+                    for (var owner_action in item.owner_actions) {
+                        if (item.owner_actions[owner_action].link != null && item.owner_actions[owner_action].link.includes('OpenBooster')) {
+                            canOpenBooster = true;
+                        }
+                    }
+
+                    if (!canOpenBooster)
+                        return;
+
+                    var itemId = item.assetid || item.id;
+                    if (ids.indexOf(itemId) !== -1) {
+                        item.queued = true;
+                        boosterQueue.push(item);
+                        numberOfQueuedItems++;
+                    }
+                });
+
+                if (numberOfQueuedItems > 0) {
+                    totalNumberOfQueuedItems += numberOfQueuedItems;
+
+                    $('#inventory_items_spinner').remove();
+                    $('#inventory_sell_buttons').append('<div id="inventory_items_spinner">' +
+                        spinnerBlock +
+                        '<div style="text-align:center">Processing ' + numberOfQueuedItems + ' items</div>' +
                         '</div>');
                 }
             }, function () {
@@ -1367,7 +1519,7 @@
                             });
                         previousSelection = -1; // Reset previous.
                     } else {
-                        previousSelection = selectedIndex; // Save previous.
+                        previousSelection = selectedIndex; // Save previous.			
                     }
                 },
                 selected: function (e, ui) {
@@ -1376,8 +1528,8 @@
             });
         }
 
-        // Gets the selected and marketable items in the inventory.
-        function getInventorySelectedMarketableItems(callback) {
+        // Gets the selected items in the inventory.
+        function getSelectedItems() {
             var ids = [];
             $('.inventory_ctn').each(function () {
                 $(this).find('.inventory_page').each(function () {
@@ -1396,6 +1548,13 @@
                     });
                 });
             });
+
+            return ids;
+        }
+
+        // Gets the selected and marketable items in the inventory.
+        function getInventorySelectedMarketableItems(callback) {
+            var ids = getSelectedItems();
 
             loadAllInventories().then(function () {
                 var items = getInventoryItems();
@@ -1418,12 +1577,74 @@
             });
         }
 
+        // Gets the selected and gemmable items in the inventory.
+        function getInventorySelectedGemsItems(callback) {
+            var ids = getSelectedItems();
+
+            loadAllInventories().then(function () {
+                var items = getInventoryItems();
+                var filteredItems = [];
+
+                items.forEach(function (item) {
+                    var canTurnIntoGems = false;
+                    for (var owner_action in item.owner_actions) {
+                        if (item.owner_actions[owner_action].link != null && item.owner_actions[owner_action].link.includes('GetGooValue')) {
+                            canTurnIntoGems = true;
+                        }
+                    }
+
+                    if (!canTurnIntoGems)
+                        return;
+
+                    var itemId = item.assetid || item.id;
+                    if (ids.indexOf(itemId) !== -1) {
+                        filteredItems.push(item);
+                    }
+                });
+
+                callback(filteredItems);
+            }, function () {
+                logDOM('Could not retrieve the inventory...');
+            });
+        }
+
+        // Gets the selected and booster pack items in the inventory.
+        function getInventorySelectedBoosterPackItems(callback) {
+            var ids = getSelectedItems();
+
+            loadAllInventories().then(function () {
+                var items = getInventoryItems();
+                var filteredItems = [];
+
+                items.forEach(function (item) {
+                    var canOpenBooster = false;
+                    for (var owner_action in item.owner_actions) {
+                        if (item.owner_actions[owner_action].link != null && item.owner_actions[owner_action].link.includes('OpenBooster')) {
+                            canOpenBooster = true;
+                        }
+                    }
+
+                    if (!canOpenBooster)
+                        return;
+
+                    var itemId = item.assetid || item.id;
+                    if (ids.indexOf(itemId) !== -1) {
+                        filteredItems.push(item);
+                    }
+                });
+
+                callback(filteredItems);
+            }, function () {
+                logDOM('Could not retrieve the inventory...');
+            });
+        }
         // Updates the (selected) sell ... items button.
         function updateSellSelectedButton() {
             getInventorySelectedMarketableItems(function (items) {
                 var selectedItems = items.length;
-                if (items.length == 0)
+                if (items.length == 0) {
                     $('.sell_selected').hide();
+                }
                 else {
                     $('.sell_selected').show();
                     $('.sell_selected > span')
@@ -1432,8 +1653,40 @@
             });
         }
 
+        // Updates the (selected) turn into ... gems button.
+        function updateTurnIntoGemsButton() {
+            getInventorySelectedGemsItems(function (items) {
+                var selectedItems = items.length;
+                if (items.length == 0) {
+                    $('.turn_into_gems').hide();
+                }
+                else {
+                    $('.turn_into_gems').show();
+                    $('.turn_into_gems > span')
+                        .text('Turn ' + selectedItems + (selectedItems == 1 ? ' Item Into Gems' : ' Items Into Gems'));
+                }
+            });
+        }
+
+        // Updates the (selected) open ... booster packs button.
+        function updateOpenBoosterPacksButton() {
+            getInventorySelectedBoosterPackItems(function (items) {
+                var selectedItems = items.length;
+                if (items.length == 0) {
+                    $('.unpack_booster_packs').hide();
+                }
+                else {
+                    $('.unpack_booster_packs').show();
+                    $('.unpack_booster_packs > span')
+                        .text('Unpack ' + selectedItems + (selectedItems == 1 ? ' Booster Pack' : ' Booster Packs'));
+                }
+            });
+        }
+
         function updateInventorySelection(item) {
             updateSellSelectedButton();
+            updateTurnIntoGemsButton();
+            updateOpenBoosterPacksButton();
 
             // Wait until g_ActiveInventory.selectedItem is identical to the selected UI item.
             // This also makes sure that the new - and correct - item_info (iteminfo0 or iteminfo1) is visible.
@@ -1560,7 +1813,7 @@
 
             $('#see_settings').remove();
             $('#global_action_menu')
-                .prepend('<span id="see_settings"><a href="javascript:void(0)">? Steam Economy Enhancer</a></span>');
+                .prepend('<span id="see_settings"><a href="javascript:void(0)"> Steam Economy Enhancer</a></span>');
             $('#see_settings').on('click', '*', () => openSettings());
 
             var appId = getActiveInventory().m_appid;
@@ -1571,7 +1824,10 @@
                 '<a class="btn_green_white_innerfade btn_medium_wide sell_selected"><span>出售选定物品</span></a>&nbsp;&nbsp;&nbsp;' +
                 (showMiscOptions
                     ? '<a class="btn_green_white_innerfade btn_medium_wide turn_into_gems"><span>将选定物品分解为宝石</span></a>&nbsp;&nbsp;&nbsp;' +
+                    '<div style="margin-top:12px;">' +
                     '<a class="btn_darkblue_white_innerfade btn_medium_wide sell_all_cards"><span>出售全部卡牌</span></a>&nbsp;&nbsp;&nbsp;'
+                    '<a class="btn_darkblue_white_innerfade btn_medium_wide unpack_booster_packs separator-btn-right" style="display:none"><span>Unpack Selected Booster Packs</span></a>' +
+                    '</div>'
                     : '') +
                 '</div>');
 
@@ -1605,6 +1861,7 @@
                 $('.sell_selected').on('click', '*', sellSelectedItems);
                 $('.sell_all_cards').on('click', '*', sellAllCards);
                 $('.turn_into_gems').on('click', '*', turnSelectedItemsIntoGems);
+                $('.unpack_booster_packs').on('click', '*', unpackSelectedBoosterPacks);
 
             }
 
@@ -1711,8 +1968,9 @@
                     return;
                 }
 
-                if (!$(item.element).is(":visible"))
+                if (!$(item.element).is(":visible")) {
                     return;
+                }
 
                 inventoryPriceQueue.push(item);
             });
@@ -1825,6 +2083,22 @@
             })
         };
 
+        // Gets the price, in cents, from a market listing.
+        function getPriceFromMarketListing(listing) {
+            var priceLabel = listing.trim().replace('--', '00');
+
+            // Fixes RUB, which has a dot at the end.
+            if (priceLabel[priceLabel.length - 1] === '.' || priceLabel[priceLabel.length - 1] === ",")
+                priceLabel = priceLabel.slice(0, -1);
+
+            // For round numbers (e.g., 100 EUR).
+            if (priceLabel.indexOf('.') === -1 && priceLabel.indexOf(',') === -1) {
+                priceLabel = priceLabel + ',00';
+            }
+
+            return parseInt(replaceNonNumbers(priceLabel));
+        }
+
         function marketListingsQueueWorker(listing, ignoreErrors, callback) {
             var asset = g_rgAssets[listing.appid][listing.contextid][listing.assetid];
 
@@ -1874,18 +2148,7 @@
             var listingUI = $(getListingFromLists(listing.listingid).elm);
 
             var game_name = asset.type;
-            var priceLabel = $('.market_listing_price > span:nth-child(1) > span:nth-child(1)', listingUI).text().trim().replace('--', '00');
-
-            // Fixes RUB, which has a dot at the end.
-            if (priceLabel[priceLabel.length - 1] === '.' || priceLabel[priceLabel.length - 1] === ",")
-                priceLabel = priceLabel.slice(0, -1);
-
-            // For round numbers (e.g., 100 EUR).
-            if (priceLabel.indexOf('.') === -1 && priceLabel.indexOf(',') === -1) {
-                priceLabel = priceLabel + ',00';
-            }
-
-            var price = parseInt(replaceNonNumbers(priceLabel));
+            var price = getPriceFromMarketListing($('.market_listing_price > span:nth-child(1) > span:nth-child(1)', listingUI).text());
 
             var priceInfo = getPriceInformationFromItem(asset);
             var item = { appid: parseInt(appid), description: { market_hash_name: market_hash_name } };
@@ -2236,11 +2499,18 @@
                 sortMarketListings($(this), false, false, true);
             });
 
+            var totalPriceBuyer = 0;
+            var totalPriceSeller = 0;
             // Add the listings to the queue to be checked for the price.
             for (var i = 0; i < marketLists.length; i++) {
                 for (var j = 0; j < marketLists[i].items.length; j++) {
                     var listingid = replaceNonNumbers(marketLists[i].items[j].values().market_listing_item_name);
                     var assetInfo = getAssetInfoFromListingId(listingid);
+
+                    if (!isNaN(assetInfo.priceBuyer))
+                        totalPriceBuyer += assetInfo.priceBuyer;
+                    if (!isNaN(assetInfo.priceSeller))
+                        totalPriceSeller += assetInfo.priceSeller;
 
                     marketListingsQueue.push({
                         listingid,
@@ -2250,6 +2520,8 @@
                     });
                 }
             }
+
+            $('#my_market_selllistings_number').append('<span id="my_market_sellistings_total_price">, ' + (totalPriceBuyer / 100.0).toFixed(2) + currencySymbol + ' 鉃?' + (totalPriceSeller / 100.0).toFixed(2) + currencySymbol + '</span>');
         }
 
 
@@ -2265,11 +2537,13 @@
             if (actionButton == null || actionButton.toLowerCase().includes('cancelmarketbuyorder'))
                 return {};
 
+            var priceBuyer = getPriceFromMarketListing($('.market_listing_price > span:nth-child(1) > span:nth-child(1)', listing.elm).text());
+            var priceSeller = getPriceFromMarketListing($('.market_listing_price > span:nth-child(1) > span:nth-child(3)', listing.elm).text());
             var itemIds = actionButton.split(',');
             var appid = replaceNonNumbers(itemIds[2]);
             var contextid = replaceNonNumbers(itemIds[3]);
             var assetid = replaceNonNumbers(itemIds[4]);
-            return { appid, contextid, assetid };
+            return { appid, contextid, assetid, priceBuyer, priceSeller };
         }
 
         // Adds pagination and search options to the market item listings.
@@ -2663,7 +2937,7 @@
             });
 
             $('#see_settings').remove();
-            $('#global_action_menu').prepend('<span id="see_settings"><a href="javascript:void(0)">? Steam Economy Enhancer</a></span>');
+            $('#global_action_menu').prepend('<span id="see_settings"><a href="javascript:void(0)"> Steam Economy Enhancer</a></span>');
             $('#see_settings').on('click', '*', () => openSettings());
 
             processMarketListings();
@@ -2672,67 +2946,102 @@
     //#endregion
 
     //#region Tradeoffers
-    function sumTradeOfferAssets(assets, user) {
-        var total = {};
-        var totalPrice = 0;
-        for (var i = 0; i < assets.length; i++) {
-            var rgItem = user.findAsset(assets[i].appid, assets[i].contextid, assets[i].assetid);
+    if (currentPage == PAGE_TRADEOFFER) {
+        // Gets the trade offer's inventory items from the active inventory.
+        function getTradeOfferInventoryItems() {
+            var arr = [];
 
-            var text = '';
-            if (rgItem != null) {
-                if (rgItem.element) {
-                    var inventoryPriceElements = $('.inventory_item_price', rgItem.element);
-                    if (inventoryPriceElements.length) {
-                        var firstPriceElement = inventoryPriceElements[0];
-                        var classes = $(firstPriceElement).attr('class').split(' ');
-                        for (var c in classes) {
-                            if (classes[c].toString().includes('price_')) {
-                                var price = parseInt(classes[c].toString().replace('price_', ''));
-                                totalPrice += price;
-                            }
-                        }
-
+            for (var child in getActiveInventory().rgChildInventories) {
+                for (var key in getActiveInventory().rgChildInventories[child].rgInventory) {
+                    var value = getActiveInventory().rgChildInventories[child].rgInventory[key];
+                    if (typeof value === 'object') {
+                        // Merges the description in the normal object, this is done to keep the layout consistent with the market page, which is also flattened.
+                        Object.assign(value, value.description);
+                        // Includes the id of the inventory item.
+                        value['id'] = key;
+                        arr.push(value);
                     }
                 }
+            }
 
-                if (rgItem.original_amount != null && rgItem.amount != null) {
-                    var originalAmount = parseInt(rgItem.original_amount);
-                    var currentAmount = parseInt(rgItem.amount);
-                    var usedAmount = originalAmount - currentAmount;
-                    text += usedAmount.toString() + 'x ';
-                }
-
-                text += rgItem.name;
-
-                if (rgItem.type != null && rgItem.type.length > 0) {
-                    text += ' (' + rgItem.type + ')';
+            // Some inventories (e.g. BattleBlock Theater) do not have child inventories, they have just one.
+            for (var key in getActiveInventory().rgInventory) {
+                var value = getActiveInventory().rgInventory[key];
+                if (typeof value === 'object') {
+                    // Merges the description in the normal object, this is done to keep the layout consistent with the market page, which is also flattened.
+                    Object.assign(value, value.description);
+                    // Includes the id of the inventory item.
+                    value['id'] = key;
+                    arr.push(value);
                 }
             }
-            else
-                text = 'Unknown Item';
 
-            if (text in total)
-                total[text] = total[text] + 1;
-            else
-                total[text] = 1;
+            return arr;
         }
 
-        var sortable = [];
-        for (var item in total)
-            sortable.push([item, total[item]])
+        function sumTradeOfferAssets(assets, user) {
+            var total = {};
+            var totalPrice = 0;
+            for (var i = 0; i < assets.length; i++) {
+                var rgItem = user.findAsset(assets[i].appid, assets[i].contextid, assets[i].assetid);
 
-        sortable.sort(function (a, b) {
-            return a[1] - b[1];
-        }).reverse();
+                var text = '';
+                if (rgItem != null) {
+                    if (rgItem.element) {
+                        var inventoryPriceElements = $('.inventory_item_price', rgItem.element);
+                        if (inventoryPriceElements.length) {
+                            var firstPriceElement = inventoryPriceElements[0];
+                            var classes = $(firstPriceElement).attr('class').split(' ');
+                            for (var c in classes) {
+                                if (classes[c].toString().includes('price_')) {
+                                    var price = parseInt(classes[c].toString().replace('price_', ''));
+                                    totalPrice += price;
+                                }
+                            }
 
-        var totalText = '<strong>Number of items: ' + sortable.length + ', worth ' + (totalPrice / 100).toFixed(2) + currencySymbol + '<br/><br/></strong>';
+                        }
+                    }
 
-        for (var i = 0; i < sortable.length; i++) {
-            totalText += sortable[i][1] + 'x ' + sortable[i][0] + '<br/>';
+                    if (rgItem.original_amount != null && rgItem.amount != null) {
+                        var originalAmount = parseInt(rgItem.original_amount);
+                        var currentAmount = parseInt(rgItem.amount);
+                        var usedAmount = originalAmount - currentAmount;
+                        text += usedAmount.toString() + 'x ';
+                    }
+
+                    text += rgItem.name;
+
+                    if (rgItem.type != null && rgItem.type.length > 0) {
+                        text += ' (' + rgItem.type + ')';
+                    }
+                }
+                else
+                    text = 'Unknown Item';
+
+                if (text in total)
+                    total[text] = total[text] + 1;
+                else
+                    total[text] = 1;
+            }
+
+            var sortable = [];
+            for (var item in total)
+                sortable.push([item, total[item]])
+
+            sortable.sort(function (a, b) {
+                return a[1] - b[1];
+            }).reverse();
+
+            var totalText = '<strong>Number of items: ' + sortable.length + ', worth ' + (totalPrice / 100).toFixed(2) + currencySymbol + '<br/><br/></strong>';
+
+            for (var i = 0; i < sortable.length; i++) {
+                totalText += sortable[i][1] + 'x ' + sortable[i][0] + '<br/>';
+            }
+
+            return totalText;
         }
-
-        return totalText;
     }
+
 
     function initializeTradeOfferUI() {
 
@@ -2746,25 +3055,25 @@
             $('div.offerheader:nth-child(1) > div:nth-child(3)').append('<div class="trade_offer_sum" id="trade_offer_your_sum">' + your_sum + '</div>');
             $('div.offerheader:nth-child(3) > div:nth-child(3)').append('<div class="trade_offer_sum" id="trade_offer_their_sum">' + their_sum + '</div>');
         });
+        
+        var updateInventoryPrices = function () {
+            setInventoryPrices(getTradeOfferInventoryItems());
+        };
 
+        // Load after the inventory is loaded.
+        updateInventoryPrices();
 
+        $('#inventory_pagecontrols').observe('childlist',
+            '*',
+            function (record) {
+                updateInventoryPrices();
+            });
+
+        
         // This only works with a new trade offer.
         if (!window.location.href.includes('tradeoffer/new'))
             return;
-
-        var updateInventoryPrices = function () {
-            var tradeOfferItems = [];
-            for (var i = 0; i < getActiveInventory().rgItemElements.length; i++) {
-                tradeOfferItems.push(getActiveInventory().rgItemElements[i].rgItem);
-            }
-
-            setInventoryPrices(tradeOfferItems);
-        }
-
-        $('#inventory_pagecontrols').observe('childlist', '*', function (record) {
-            updateInventoryPrices();
-        });
-
+        
         $('#inventory_displaycontrols').append(
             '<br/>' +
             '<div class="trade_offer_buttons">' +
@@ -2880,6 +3189,7 @@
         '.inventory_item_price { top: 0px;position: absolute;right: 0;background: #3571a5;padding: 2px;color: white; font-size:11px; border: 1px solid #666666;}' +
         '.separator-large {display:inline-block;width:6px;}' +
         '.separator-small {display:inline-block;width:1px;}' +
+        '.separator-btn-right {margin-right:12px;}' +
         '.pagination { padding-left: 0px; }' +
         '.pagination li { display:inline-block; padding: 5px 10px;background: rgba(255, 255, 255, 0.10); margin-right: 6px; border: 1px solid #666666; }' +
         '.pagination li.active { background: rgba(255, 255, 255, 0.25); }');
