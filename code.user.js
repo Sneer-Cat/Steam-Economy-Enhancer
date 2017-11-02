@@ -1248,13 +1248,13 @@
 
                     if (err != ERROR_SUCCESS) {
                         logConsole('Failed to unpack booster pack ' + itemName);
-                        logDOM(padLeft + ' - ' + itemName + ' 没有拆开.');
+                        logDOM(padLeft + ' - ' + itemName + ' 拆包失败.');
 
                         $('#' + item.appid + '_' + item.contextid + '_' + itemId).css('background', COLOR_ERROR);
                         return callback(false);
                     }
 
-                    logDOM(padLeft + ' - ' + itemName + ' unpacked.');
+                    logDOM(padLeft + ' - ' + itemName + ' 拆包成功.');
                     $('#' + item.appid + '_' + item.contextid + '_' + itemId).css('background', COLOR_SUCCESS);
 
                     callback(true);
@@ -1681,7 +1681,7 @@
                 else {
                     $('.unpack_booster_packs').show();
                     $('.unpack_booster_packs > span')
-                        .text('拆开 ' + selectedItems + (selectedItems == 1 ? ' 补充包' : ' 补充包'));
+                        .text('拆开 ' + selectedItems + (selectedItems == 1 ? ' 个补充包' : ' 个补充包'));
                 }
             });
         }
