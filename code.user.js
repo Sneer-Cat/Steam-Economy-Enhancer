@@ -559,6 +559,7 @@
         //communityitemid = 4830605461
         //http://steamcommunity.com/my/ajaxunpackbooster/
     }
+
     // Get the current price history for an item.
     SteamMarket.prototype.getCurrentPriceHistory = function (appid, market_name, callback) {
         var url = window.location.protocol +
@@ -656,10 +657,10 @@
     //
     //{
     //"success" : 1,
-    //"sell_order_table" : "<table class=\"market_commodity_orders_table\"><tr><th align=\"right\">售价\/th><th align=\"right\">数量<\/th><\/tr><tr><td align=\"right\" class=\"\">0,04\u20ac<\/td><td align=\"right\">311<\/td><\/tr><tr><td align=\"right\" class=\"\">0,05\u20ac<\/td><td align=\"right\">895<\/td><\/tr><tr><td align=\"right\" class=\"\">0,06\u20ac<\/td><td align=\"right\">495<\/td><\/tr><tr><td align=\"right\" class=\"\">0,07\u20ac<\/td><td align=\"right\">174<\/td><\/tr><tr><td align=\"right\" class=\"\">0,08\u20ac<\/td><td align=\"right\">49<\/td><\/tr><tr><td align=\"right\" class=\"\">0,09\u20ac 以上的<\/td><td align=\"right\">41<\/td><\/tr><\/table>",
+    //"sell_order_table" : "<table class=\"market_commodity_orders_table\"><tr><th align=\"right\">售价<\/th><th align=\"right\">数量<\/th><\/tr><tr><td align=\"right\" class=\"\">0,04\u20ac<\/td><td align=\"right\">311<\/td><\/tr><tr><td align=\"right\" class=\"\">0,05\u20ac<\/td><td align=\"right\">895<\/td><\/tr><tr><td align=\"right\" class=\"\">0,06\u20ac<\/td><td align=\"right\">495<\/td><\/tr><tr><td align=\"right\" class=\"\">0,07\u20ac<\/td><td align=\"right\">174<\/td><\/tr><tr><td align=\"right\" class=\"\">0,08\u20ac<\/td><td align=\"right\">49<\/td><\/tr><tr><td align=\"right\" class=\"\">0,09\u20ac or more<\/td><td align=\"right\">41<\/td><\/tr><\/table>",
     //"sell_order_summary" : "<span class=\"market_commodity_orders_header_promote\">1965<\/span> for sale starting at <span class=\"market_commodity_orders_header_promote\">0,04\u20ac<\/span>",
     //"buy_order_table" : "<table class=\"market_commodity_orders_table\"><tr><th align=\"right\">售价<\/th><th align=\"right\">数量<\/th><\/tr><tr><td align=\"right\" class=\"\">0,03\u20ac<\/td><td align=\"right\">93<\/td><\/tr><\/table>",
-    //"buy_order_summary" : "<span class=\"market_commodity_orders_header_promote\">93<\/span> requests to buy at <span class=\"market_commodity_orders_header_promote\">0,03\u20ac<\/span>  以下的",
+    //"buy_order_summary" : "<span class=\"market_commodity_orders_header_promote\">93<\/span> requests to buy at <span class=\"market_commodity_orders_header_promote\">0,03\u20ac<\/span> 以下的",
     //"highest_buy_order" : "3",
     //"lowest_sell_order" : "4",
     //"buy_order_graph" : [[0.03, 93, "93 buy orders at 0,03\u20ac or higher"]],
@@ -1047,6 +1048,7 @@
                 totals.innerHTML += '<div><strong>Total scrap ' + totalScrap + '.</strong></div>';
             }
         }
+
         var sellQueue = async.queue(function (task, next) {
             market.sellItem(task.item,
                 task.sellPrice,
@@ -1519,7 +1521,7 @@
                             });
                         previousSelection = -1; // Reset previous.
                     } else {
-                        previousSelection = selectedIndex; // Save previous.			
+                        previousSelection = selectedIndex; // Save previous.					
                     }
                 },
                 selected: function (e, ui) {
@@ -1638,6 +1640,7 @@
                 logDOM('Could not retrieve the inventory...');
             });
         }
+
         // Updates the (selected) sell ... items button.
         function updateSellSelectedButton() {
             getInventorySelectedMarketableItems(function (items) {
@@ -1813,19 +1816,19 @@
 
             $('#see_settings').remove();
             $('#global_action_menu')
-                .prepend('<span id="see_settings"><a href="javascript:void(0)"> Steam Economy Enhancer</a></span>');
+                .prepend('<span id="see_settings"><a href="javascript:void(0)">⬖ Steam Economy Enhancer</a></span>');
             $('#see_settings').on('click', '*', () => openSettings());
 
             var appId = getActiveInventory().m_appid;
             var showMiscOptions = appId == 753;
 
             var sellButtons = $('<div id="inventory_sell_buttons" style="margin-bottom:12px;">' +
-                '<a class="btn_green_white_innerfade btn_medium_wide sell_all"><span>出售全部物品</span></a>&nbsp;&nbsp;&nbsp;' +
-                '<a class="btn_green_white_innerfade btn_medium_wide sell_selected"><span>出售选定物品</span></a>&nbsp;&nbsp;&nbsp;' +
+                '<a class="btn_green_white_innerfade btn_medium_wide sell_all separator-btn-right"><span>出售全部物品</span></a>' +
+                '<a class="btn_green_white_innerfade btn_medium_wide sell_selected separator-btn-right" style="display:none"><span>出售选定物品</span></a>' +
                 (showMiscOptions
-                    ? '<a class="btn_green_white_innerfade btn_medium_wide turn_into_gems"><span>将选定物品分解为宝石</span></a>&nbsp;&nbsp;&nbsp;' +
+                    ? '<a class="btn_green_white_innerfade btn_medium_wide sell_all_cards separator-btn-right"><span>出售全部卡牌</span></a>' +
                     '<div style="margin-top:12px;">' +
-                    '<a class="btn_darkblue_white_innerfade btn_medium_wide sell_all_cards"><span>出售全部卡牌</span></a>&nbsp;&nbsp;&nbsp;'
+                    '<a class="btn_darkblue_white_innerfade btn_medium_wide turn_into_gems separator-btn-right" style="display:none"><span>将选定物品分解为宝石</span></a>' +
                     '<a class="btn_darkblue_white_innerfade btn_medium_wide unpack_booster_packs separator-btn-right" style="display:none"><span>Unpack Selected Booster Packs</span></a>' +
                     '</div>'
                     : '') +
@@ -1839,6 +1842,7 @@
 
             $('#inventory_applogo').hide(); // Hide the Steam/game logo, we don't need to see it twice.
             $('#inventory_applogo').after(logger);
+
 
             $("#logger").on('scroll',
                 function () {
@@ -2031,7 +2035,7 @@
 
                     var sellPrice = calculateSellPriceBeforeFees(null, histogram, false, 0, 65535);
                     var itemPrice = sellPrice == 65535
-                        ? '8'
+                        ? '∞'
                         : (market.getPriceIncludingFees(sellPrice) / 100.0).toFixed(2) + currencySymbol;
 
                     var elementName = (currentPage == PAGE_TRADEOFFER ? '#item' : '#') +
@@ -2185,7 +2189,7 @@
                                 ? '-'
                                 : ((histogram.highest_buy_order / 100) + currencySymbol));
                             $('.market_table_value > span:nth-child(1) > span:nth-child(1) > span:nth-child(1)',
-                                listingUI).append(' ? <span title="这可能是当前最高的买价">' +
+                                listingUI).append(' ➤ <span title="这可能是当前最高的买价">' +
                                 highestBuyOrderPrice +
                                 '</span>');
 
@@ -2521,7 +2525,7 @@
                 }
             }
 
-            $('#my_market_selllistings_number').append('<span id="my_market_sellistings_total_price">, ' + (totalPriceBuyer / 100.0).toFixed(2) + currencySymbol + ' 鉃?' + (totalPriceSeller / 100.0).toFixed(2) + currencySymbol + '</span>');
+            $('#my_market_selllistings_number').append('<span id="my_market_sellistings_total_price">, ' + (totalPriceBuyer / 100.0).toFixed(2) + currencySymbol + ' ➤ ' + (totalPriceSeller / 100.0).toFixed(2) + currencySymbol + '</span>');
         }
 
 
@@ -2631,7 +2635,7 @@
                 // Show the spinner so the user knows that something is going on.
                 $('.my_market_header').eq(0).append('<div id="market_listings_spinner">' +
                     spinnerBlock +
-                    '<div style="text-align:center">加载交易列表中...</div>' +
+                    '<div style="text-align:center">Loading market listings</div>' +
                     '</div>');
 
                 while (currentCount < totalCount) {
@@ -2697,8 +2701,8 @@
             var asc = true;
 
             // (Re)set the asc/desc arrows.
-            const arrow_down = '??';
-            const arrow_up = '??';
+            const arrow_down = '🡻';
+            const arrow_up = '🡹';
 
             $('.market_listing_table_header > span', elem).each(function () {
                 if ($(this).hasClass('market_listing_edit_buttons'))
@@ -2937,7 +2941,7 @@
             });
 
             $('#see_settings').remove();
-            $('#global_action_menu').prepend('<span id="see_settings"><a href="javascript:void(0)"> Steam Economy Enhancer</a></span>');
+            $('#global_action_menu').prepend('<span id="see_settings"><a href="javascript:void(0)">⬖ Steam Economy Enhancer</a></span>');
             $('#see_settings').on('click', '*', () => openSettings());
 
             processMarketListings();
