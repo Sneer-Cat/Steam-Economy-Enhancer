@@ -1248,7 +1248,7 @@
 
                     if (err != ERROR_SUCCESS) {
                         logConsole('Failed to unpack booster pack ' + itemName);
-                        logDOM(padLeft + ' - ' + itemName + ' not unpacked.');
+                        logDOM(padLeft + ' - ' + itemName + ' 没有拆开.');
 
                         $('#' + item.appid + '_' + item.contextid + '_' + itemId).css('background', COLOR_ERROR);
                         return callback(false);
@@ -1681,7 +1681,7 @@
                 else {
                     $('.unpack_booster_packs').show();
                     $('.unpack_booster_packs > span')
-                        .text('Unpack ' + selectedItems + (selectedItems == 1 ? ' Booster Pack' : ' Booster Packs'));
+                        .text('拆开 ' + selectedItems + (selectedItems == 1 ? ' 补充包' : ' 补充包'));
                 }
             });
         }
@@ -2635,7 +2635,7 @@
                 // Show the spinner so the user knows that something is going on.
                 $('.my_market_header').eq(0).append('<div id="market_listings_spinner">' +
                     spinnerBlock +
-                    '<div style="text-align:center">Loading market listings</div>' +
+                    '<div style="text-align:center">加载交易列表中...</div>' +
                     '</div>');
 
                 while (currentCount < totalCount) {
