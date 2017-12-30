@@ -1067,7 +1067,7 @@
                             ' 已添加至市场，售价为 ' +
                             (market.getPriceIncludingFees(task.sellPrice) / 100.0).toFixed(2) +
                             currencySymbol +
-                            ', you will receive ' +
+                            '，你将会收到 ' +
                             (task.sellPrice / 100.0).toFixed(2) + currencySymbol +
                             '.');
 
@@ -1200,7 +1200,7 @@
                             logConsole('============================')
                             logConsole(itemName);
                             logConsole('Turned into ' + goo.goo_value + ' gems');
-                            logDOM(padLeft + ' - ' + itemName + ' turned into ' + item.goo_value_expected + ' gems.');
+                            logDOM(padLeft + ' - ' + itemName + ' 已分解为 ' + item.goo_value_expected + ' 个宝石。');
                             $('#' + item.appid + '_' + item.contextid + '_' + itemId).css('background', COLOR_SUCCESS);
 
                             totalScrap += item.goo_value_expected;
@@ -1304,7 +1304,7 @@
                     $('#inventory_items_spinner').remove();
                     $('#inventory_sell_buttons').append('<div id="inventory_items_spinner">' +
                         spinnerBlock +
-                        '<div style="text-align:center">正在操作 ' + numberOfQueuedItems + ' 个物品</div>' +
+                        '<div style="text-align:center">正在处理 ' + numberOfQueuedItems + ' 个物品</div>' +
                         '</div>');
                 }
             }, function () {
@@ -1354,7 +1354,7 @@
                     $('#inventory_items_spinner').remove();
                     $('#inventory_sell_buttons').append('<div id="inventory_items_spinner">' +
                         spinnerBlock +
-                        '<div style="text-align:center">Processing ' + numberOfQueuedItems + ' items</div>' +
+                        '<div style="text-align:center">正在处理 ' + numberOfQueuedItems + ' 个物品</div>' +
                         '</div>');
                 }
             }, function () {
@@ -1396,7 +1396,7 @@
                 $('#inventory_items_spinner').remove();
                 $('#inventory_sell_buttons').append('<div id="inventory_items_spinner">' +
                     spinnerBlock +
-                    '<div style="text-align:center">正在操作 ' + numberOfQueuedItems + ' 个物品</div>' +
+                    '<div style="text-align:center">正在处理 ' + numberOfQueuedItems + ' 个物品</div>' +
                     '</div>');
             }
         }
@@ -1666,7 +1666,7 @@
                 else {
                     $('.turn_into_gems').show();
                     $('.turn_into_gems > span')
-                        .text('Turn ' + selectedItems + (selectedItems == 1 ? ' Item Into Gems' : ' Items Into Gems'));
+                        .text('分解 ' + selectedItems + (selectedItems == 1 ? ' 个物品' : ' 个物品为宝石'));
                 }
             });
         }
@@ -1829,7 +1829,7 @@
                     ? '<a class="btn_green_white_innerfade btn_medium_wide sell_all_cards separator-btn-right"><span>出售全部卡牌</span></a>' +
                     '<div style="margin-top:12px;">' +
                     '<a class="btn_darkblue_white_innerfade btn_medium_wide turn_into_gems separator-btn-right" style="display:none"><span>将选定物品分解为宝石</span></a>' +
-                    '<a class="btn_darkblue_white_innerfade btn_medium_wide unpack_booster_packs separator-btn-right" style="display:none"><span>Unpack Selected Booster Packs</span></a>' +
+                    '<a class="btn_darkblue_white_innerfade btn_medium_wide unpack_booster_packs separator-btn-right" style="display:none"><span>拆开选定补充包</span></a>' +
                     '</div>'
                     : '') +
                 '</div>');
