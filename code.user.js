@@ -1,10 +1,10 @@
 // ==UserScript==
-// @name        Steam批量卖卡以及批量更改上架物品价格 / Steam Economy Enhancer
-// @namespace   https://steamcn.com/t311996-1-1
+// @name        Steam Economy Enhancer
+// @namespace   https://github.com/Nuklon
 // @author      Nuklon
 // @license     MIT
 // @version     6.5.5
-// @description Enhances the Steam Inventory and Steam Market.
+// @description Steam批量卖卡以及批量更改上架物品价格
 // @include     *://steamcommunity.com/id/*/inventory*
 // @include     *://steamcommunity.com/profiles/*/inventory*
 // @include     *://steamcommunity.com/market*
@@ -20,9 +20,9 @@
 // @require     https://github.com/rmariuzzo/checkboxes.js/releases/download/v1.2.2/jquery.checkboxes-1.2.2.min.js
 // @grant       unsafeWindow
 // @homepageURL https://github.com/Nuklon/Steam-Economy-Enhancer
-// @supportURL  https://steamcn.com/t311996-1-1
-// @downloadURL https://raw.githubusercontent.com/Sneer-Cat/Steam-Economy-Enhancer/master/code.user.js
-// @updateURL   https://raw.githubusercontent.com/Sneer-Cat/Steam-Economy-Enhancer/master/code.user.js
+// @supportURL  https://github.com/Nuklon/Steam-Economy-Enhancer/issues
+// @downloadURL https://github.com/Sneer-Cat/Steam-Economy-Enhancer/raw/master/code.user.js
+// @updateURL   https://github.com/Sneer-Cat/Steam-Economy-Enhancer/raw/master/code.user.js
 // ==/UserScript==
 // jQuery is already added by Steam, force no conflict mode.
 (function($, async) {
@@ -1797,7 +1797,7 @@
                     var isBoosterPack = getActiveInventory().selectedItem.name.toLowerCase().endsWith('booster pack');
                     if (isBoosterPack) {
                         var tradingCardsUrl = "/market/search?q=&category_753_Game%5B%5D=tag_app_" + getActiveInventory().selectedItem.market_fee_app + "&category_753_item_class%5B%5D=tag_item_class_2&appid=753";
-                        ownerActions.append('<br/> <a class="btn_small btn_grey_white_innerfade" href="' + tradingCardsUrl + '"><span>View trading cards in Community Market</span></a>');
+                        ownerActions.append('<br/> <a class="btn_small btn_grey_white_innerfade" href="' + tradingCardsUrl + '"><span>在社区市场中查看可集换式卡牌</span></a>');
                     }
 
 
@@ -2274,14 +2274,14 @@
                                 '-' :
                                 ((histogram.highest_buy_order / 100) + currencySymbol));
                             $('.market_table_value > span:nth-child(1) > span:nth-child(1) > span:nth-child(1)',
-                                listingUI).append(' ➤ <span title="这可能是当前最高买价.">' +
+                                listingUI).append(' ➤ <span title="这可能是当前最高买价。">' +
                                 highestBuyOrderPrice +
                                 '</span>');
 
                             logConsole('============================')
                             logConsole(JSON.stringify(listing));
                             logConsole(game_name + ': ' + asset.name);
-                            logConsole('Current price: ' + price / 100.0);
+                            logConsole('当前价格：' + price / 100.0);
 
                             // Calculate two prices here, one without the offset and one with the offset.
                             // The price without the offset is required to not relist the item constantly when you have the lowest price (i.e., with a negative offset).
@@ -2300,7 +2300,7 @@
 
                             var sellPriceWithoutOffsetWithFees = market.getPriceIncludingFees(sellPriceWithoutOffset);
 
-                            logConsole('Calculated price: ' +
+                            logConsole('计算出的价格：' +
                                 sellPriceWithoutOffsetWithFees / 100.0 +
                                 ' (' +
                                 sellPriceWithoutOffset / 100.0 +
@@ -2312,7 +2312,7 @@
                                 '最好的价格是 ' + (sellPriceWithoutOffsetWithFees / 100.0) + currencySymbol + '.');
 
                             if (sellPriceWithoutOffsetWithFees < price) {
-                                logConsole('Sell price is too high.');
+                                logConsole('售价太高。');
 
                                 $('.market_listing_my_price', listingUI).last()
                                     .css('background', COLOR_PRICE_EXPENSIVE);
@@ -2322,12 +2322,12 @@
                                     queueOverpricedItemListing(listing.listingid);
                                 }
                             } else if (sellPriceWithoutOffsetWithFees > price) {
-                                logConsole('Sell price is too low.');
+                                logConsole('售价太低。');
 
                                 $('.market_listing_my_price', listingUI).last().css('background', COLOR_PRICE_CHEAP);
                                 listingUI.addClass('underpriced');
                             } else {
-                                logConsole('Sell price is fair.');
+                                logConsole('售价正好。');
 
                                 $('.market_listing_my_price', listingUI).last().css('background', COLOR_PRICE_FAIR);
                                 listingUI.addClass('fair');
@@ -3426,4 +3426,3 @@
     };
     //#endregion
 })(jQuery, async);
-
