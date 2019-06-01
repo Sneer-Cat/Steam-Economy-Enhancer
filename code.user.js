@@ -19,8 +19,8 @@
 // @require     https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.js
 // @require     https://github.com/rmariuzzo/checkboxes.js/releases/download/v1.2.2/jquery.checkboxes-1.2.2.min.js
 // @grant       unsafeWindow
-// @homepageURL https://github.com/Nuklon/Steam-Economy-Enhancer
-// @supportURL  https://github.com/Nuklon/Steam-Economy-Enhancer/issues
+// @homepageURL https://steamcn.com/t311996-1-1
+// @supportURL  https://steamcn.com/t311996-1-1
 // @downloadURL https://github.com/Sneer-Cat/Steam-Economy-Enhancer/raw/master/code.user.js
 // @updateURL   https://github.com/Sneer-Cat/Steam-Economy-Enhancer/raw/master/code.user.js
 // ==/UserScript==
