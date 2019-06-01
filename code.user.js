@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name        Steam批量卖卡以及批量更改上架物品价格
+// @name        Steam批量卖卡以及批量更改上架物品价格 / Steam Economy Enhancer
 // @namespace   https://steamcn.com/t311996-1-1
 // @author      Nuklon
 // @license     MIT
