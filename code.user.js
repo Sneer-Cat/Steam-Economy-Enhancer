@@ -1,8 +1,6 @@
-
-
 // ==UserScript==
-// @name        Steam Economy Enhancer
-// @namespace   https://github.com/Nuklon
+// @name        Steam批量卖卡以及批量更改上架物品价格
+// @namespace   https://steamcn.com/t311996-1-1
 // @author      Nuklon
 // @license     MIT
 // @version     6.5.5
@@ -690,10 +688,10 @@
     //
     //{
     //"success" : 1,
-    //"sell_order_table" : "<table class="market_commodity_orders_table"><tr><th align="right">售价<\/th><th align="right">数量<\/th><\/tr><tr><td align="right" class="">0,04\u20ac<\/td><td align="right">311<\/td><\/tr><tr><td align="right" class="">0,05\u20ac<\/td><td align="right">895<\/td><\/tr><tr><td align="right" class="">0,06\u20ac<\/td><td align="right">495<\/td><\/tr><tr><td align="right" class="">0,07\u20ac<\/td><td align="right">174<\/td><\/tr><tr><td align="right" class="">0,08\u20ac<\/td><td align="right">49<\/td><\/tr><tr><td align="right" class="">0,09\u20ac or more<\/td><td align="right">41<\/td><\/tr><\/table>",
-    //"sell_order_summary" : "<span class="market_commodity_orders_header_promote">1965<\/span> for sale starting at <span class="market_commodity_orders_header_promote">0,04\u20ac<\/span>",
-    //"buy_order_table" : "<table class="market_commodity_orders_table"><tr><th align="right">售价<\/th><th align="right">数量<\/th><\/tr><tr><td align="right" class="">0,03\u20ac<\/td><td align="right">93<\/td><\/tr><\/table>",
-    //"buy_order_summary" : "<span class="market_commodity_orders_header_promote">93<\/span> requests to buy at <span class="market_commodity_orders_header_promote">0,03\u20ac<\/span> or lower",
+    //"sell_order_table" : "<table class=\"market_commodity_orders_table\"><tr><th align=\"right\">售价<\/th><th align=\"right\">数量<\/th><\/tr><tr><td align=\"right\" class=\"\">0,04\u20ac<\/td><td align=\"right\">311<\/td><\/tr><tr><td align=\"right\" class=\"\">0,05\u20ac<\/td><td align=\"right\">895<\/td><\/tr><tr><td align=\"right\" class=\"\">0,06\u20ac<\/td><td align=\"right\">495<\/td><\/tr><tr><td align=\"right\" class=\"\">0,07\u20ac<\/td><td align=\"right\">174<\/td><\/tr><tr><td align=\"right\" class=\"\">0,08\u20ac<\/td><td align=\"right\">49<\/td><\/tr><tr><td align=\"right\" class=\"\">0,09\u20ac or more<\/td><td align=\"right\">41<\/td><\/tr><\/table>",
+    //"sell_order_summary" : "<span class=\"market_commodity_orders_header_promote\">1965<\/span> for sale starting at <span class=\"market_commodity_orders_header_promote\">0,04\u20ac<\/span>",
+    //"buy_order_table" : "<table class=\"market_commodity_orders_table\"><tr><th align=\"right\">售价<\/th><th align=\"right\">数量<\/th><\/tr><tr><td align=\"right\" class=\"\">0,03\u20ac<\/td><td align=\"right\">93<\/td><\/tr><\/table>",
+    //"buy_order_summary" : "<span class=\"market_commodity_orders_header_promote\">93<\/span> requests to buy at <span class=\"market_commodity_orders_header_promote\">0,03\u20ac<\/span> or lower",
     //"highest_buy_order" : "3",
     //"lowest_sell_order" : "4",
     //"buy_order_graph" : [[0.03, 93, "93 buy orders at 0,03\u20ac or higher"]],
@@ -1073,10 +1071,10 @@
             totals.innerHTML = '';
 
             if (totalPriceWithFeesOnMarket > 0) {
-                totals.innerHTML += '<div><strong>Total listed for ' +
+                totals.innerHTML += '<div><strong>累计上架物品总价为 ' +
                     (totalPriceWithFeesOnMarket / 100.0).toFixed(2) +
                     currencySymbol +
-                    ', you will receive ' +
+                    ', 你将会获得 ' +
                     (totalPriceWithoutFeesOnMarket / 100).toFixed(2) +
                     currencySymbol +
                     '.</strong></div>';
@@ -1119,7 +1117,7 @@
                                 logDOM(padLeft +
                                     ' - ' +
                                     itemName +
-                                    ' not added to market because ' +
+                                    ' 上架市场失败，原因为 ' +
                                     data.responseJSON.message[0].toLowerCase() +
                                     data.responseJSON.message.slice(1));
                             } else
@@ -1154,7 +1152,7 @@
                     sellItems(filteredItems);
                 },
                 function() {
-                    logDOM('Could not retrieve the inventory...');
+                    logDOM('无法检索库存...');
                 });
         }
 
@@ -1174,7 +1172,7 @@
                     sellItems(filteredItems);
                 },
                 function() {
-                    logDOM('Could not retrieve the inventory...');
+                    logDOM('无法检索库存...');
                 });
         }
 
@@ -1348,7 +1346,7 @@
                         '</div>');
                 }
             }, function() {
-                logDOM('Could not retrieve the inventory...');
+                logDOM('无法检索库存...');
             });
         }
 
@@ -1398,7 +1396,7 @@
                         '</div>');
                 }
             }, function() {
-                logDOM('Could not retrieve the inventory...');
+                logDOM('无法检索库存...');
             });
         }
 
@@ -1410,7 +1408,7 @@
 
         function sellItems(items) {
             if (items.length == 0) {
-                logDOM('These items cannot be added to the market...');
+                logDOM('这些物品无法被上架至市场...');
 
                 return;
             }
@@ -1616,7 +1614,7 @@
 
                 callback(filteredItems);
             }, function() {
-                logDOM('Could not retrieve the inventory...');
+                logDOM('无法检索库存...');
             });
         }
 
@@ -1647,7 +1645,7 @@
 
                 callback(filteredItems);
             }, function() {
-                logDOM('Could not retrieve the inventory...');
+                logDOM('无法检索库存...');
             });
         }
 
@@ -1678,7 +1676,7 @@
 
                 callback(filteredItems);
             }, function() {
-                logDOM('Could not retrieve the inventory...');
+                logDOM('无法检索库存...');
             });
         }
 
@@ -1794,10 +1792,13 @@
                     var ownerActions = $('#' + item_info_id + '_item_owner_actions');
 
                     ownerActions.append('<br/> <a class="btn_small btn_grey_white_innerfade" href="/market/listings/' + appid + '/' + market_hash_name + '"><span>在社区市场中查看</span></a>');
+                    $('#' + item_info_id + '_item_market_actions > div:nth-child(1) > div:nth-child(1)').hide();
+
                     var isBoosterPack = getActiveInventory().selectedItem.name.toLowerCase().endsWith('booster pack');
                     if (isBoosterPack) {
                         var tradingCardsUrl = "/market/search?q=&category_753_Game%5B%5D=tag_app_" + getActiveInventory().selectedItem.market_fee_app + "&category_753_item_class%5B%5D=tag_item_class_2&appid=753";
-                    ownerActions.append('<br/> <a class="btn_small btn_grey_white_innerfade" href="' + tradingCardsUrl + '"><span>在社区市场中查看可集换式卡牌</span></a>');
+                        ownerActions.append('<br/> <a class="btn_small btn_grey_white_innerfade" href="' + tradingCardsUrl + '"><span>View trading cards in Community Market</span></a>');
+                    }
 
 
                     // Generate quick sell buttons.
@@ -1891,7 +1892,7 @@
 
             $('#see_settings').remove();
             $('#global_action_menu')
-                .prepend('<span id="see_settings"><a href="javascript:void(0)">⬖ Steam Economy Enhancer 设置 </a></span>');
+                .prepend('<span id="see_settings"><a href="javascript:void(0)">⬖ SEE 设置 </a></span>');
             $('#see_settings').on('click', '*', () => openSettings());
 
             var appId = getActiveInventory().m_appid;
@@ -1968,7 +1969,7 @@
                         });
                 },
                 function() {
-                    logDOM('Could not retrieve the inventory...');
+                    logDOM('无法检索库存...');
                 });
         }
 
@@ -2783,7 +2784,7 @@
                 var invert = $('.market_select_item:checked', selectionGroup).length == $('.market_select_item', selectionGroup).length;
                 if ($('.market_select_item', selectionGroup).length == 0) // If there are no items to select, keep it at Select all.
                     invert = false;
-                $('.select_all > span', selectionGroup).text(invert ? 'Deselect all' : 'Select all');
+                $('.select_all > span', selectionGroup).text(invert ? '取消所选物品' : '选中全部物品');
             });
         }
 
@@ -2923,7 +2924,7 @@
             $('.my_market_header').first().append(
                 '<div class="market_listing_buttons">' +
                 '<a class="item_market_action_button item_market_action_button_green select_all market_listing_button">' +
-                '<span class="item_market_action_button_contents" style="text-transform:none">选择全部物品</span>' +
+                '<span class="item_market_action_button_contents" style="text-transform:none">选中全部物品</span>' +
                 '</a>' +
                 '<span class="separator-small"></span>' +
                 '<a class="item_market_action_button item_market_action_button_green remove_selected market_listing_button">' +
@@ -2946,7 +2947,7 @@
             $('.my_market_header').slice(1).append(
                 '<div class="market_listing_buttons">' +
                 '<a class="item_market_action_button item_market_action_button_green select_all market_listing_button">' +
-                '<span class="item_market_action_button_contents" style="text-transform:none">选择全部物品</span>' +
+                '<span class="item_market_action_button_contents" style="text-transform:none">选中全部物品</span>' +
                 '</a>' +
                 '<span class="separator-large"></span>' +
                 '<a class="item_market_action_button item_market_action_button_green remove_selected market_listing_button">' +
@@ -3044,7 +3045,7 @@
             });
 
             $('#see_settings').remove();
-            $('#global_action_menu').prepend('<span id="see_settings"><a href="javascript:void(0)">⬖ Steam Economy Enhancer</a></span>');
+            $('#global_action_menu').prepend('<span id="see_settings"><a href="javascript:void(0)">⬖ SEE 设置</a></span>');
             $('#see_settings').on('click', '*', () => openSettings());
 
             processMarketListings();
@@ -3260,7 +3261,7 @@
             '计算多少小时内的平均历史价格:&nbsp;<input class="price_option_input" style="background-color: black;color: white;border: transparent;" type="number" step="2" id="' + SETTING_PRICE_HISTORY_HOURS + '" value=' + getSettingWithDefault(SETTING_PRICE_HISTORY_HOURS) + '>' +
             '</div>' +
             '<div style="margin-bottom:6px;">' +
-            '价格补正（基于“基准价格”在批量出售时进行调价）:&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_PRICE_OFFSET + '" value=' + getSettingWithDefault(SETTING_PRICE_OFFSET) + '>' +
+            '价格补正（基于“基准价格”在批量出售时进行调价，可为负数）:&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_PRICE_OFFSET + '" value=' + getSettingWithDefault(SETTING_PRICE_OFFSET) + '>' +
             '<br/>' +
             '</div>' +
             '<div style="margin-top:6px">' +
@@ -3425,6 +3426,4 @@
     };
     //#endregion
 })(jQuery, async);
-
-
 
