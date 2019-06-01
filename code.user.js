@@ -1793,14 +1793,11 @@
 
                     var ownerActions = $('#' + item_info_id + '_item_owner_actions');
 
-                    ownerActions.append('<br/> <a class="btn_small btn_grey_white_innerfade" href="/market/listings/' + appid + '/' + market_hash_name + '"><span>View in Community Market</span></a>');
-                    $('#' + item_info_id + '_item_market_actions > div:nth-child(1) > div:nth-child(1)').hide();
-
+                    ownerActions.append('<br/> <a class="btn_small btn_grey_white_innerfade" href="/market/listings/' + appid + '/' + market_hash_name + '"><span>在社区市场中查看</span></a>');
                     var isBoosterPack = getActiveInventory().selectedItem.name.toLowerCase().endsWith('booster pack');
                     if (isBoosterPack) {
                         var tradingCardsUrl = "/market/search?q=&category_753_Game%5B%5D=tag_app_" + getActiveInventory().selectedItem.market_fee_app + "&category_753_item_class%5B%5D=tag_item_class_2&appid=753";
-                        ownerActions.append('<br/> <a class="btn_small btn_grey_white_innerfade" href="' + tradingCardsUrl + '"><span>View trading cards in Community Market</span></a>');
-                    }
+                    ownerActions.append('<br/> <a class="btn_small btn_grey_white_innerfade" href="' + tradingCardsUrl + '"><span>在社区市场中查看可集换式卡牌</span></a>');
 
 
                     // Generate quick sell buttons.
@@ -1824,7 +1821,10 @@
 
                     prices = prices.filter((v, i) => prices.indexOf(v) === i).sort((a, b) => a - b);
 
-                    var buttons = ' ';
+                    var buttons = '<div>';
+                    var oributton = $('#' + item_info_id + '_item_market_actions > a.item_market_action_button', item_info);
+                    buttons += '<a class="item_market_action_button item_market_action_button_green" style="margin-right: 4px;" href="javascript:SellCurrentSelection()">'+oributton.html()+'</a>';
+                    oributton.remove();
                     prices.forEach(function(e) {
                         buttons +=
                             '<a class="item_market_action_button item_market_action_button_green quick_sell" id="quick_sell' +
@@ -1839,6 +1839,7 @@
                             '<span class="item_market_action_button_preload"></span>' +
                             '</a>'
                     });
+                    buttons += '</div>';
 
                     $('#' + item_info_id + '_item_market_actions', item_info).append(buttons);
 
