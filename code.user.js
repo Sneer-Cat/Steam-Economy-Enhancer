@@ -3,8 +3,8 @@
 // @namespace   https://github.com/Nuklon
 // @author      Nuklon
 // @license     MIT
-// @version     6.5.5
-// @description Steam批量卖卡以及批量更改上架物品价格
+// @version     6.7.6
+// @description 增强 Steam 库存和 Steam 市场功能
 // @include     *://steamcommunity.com/id/*/inventory*
 // @include     *://steamcommunity.com/profiles/*/inventory*
 // @include     *://steamcommunity.com/market*
@@ -43,6 +43,7 @@
     const COLOR_PRICE_FAIR = '#496424';
     const COLOR_PRICE_CHEAP = '#837433';
     const COLOR_PRICE_EXPENSIVE = '#813030';
+    const COLOR_PRICE_NOT_CHECKED = '#26566c';
 
     const ERROR_SUCCESS = null;
     const ERROR_FAILED = 1;
@@ -104,6 +105,7 @@
     const SETTING_MIN_MISC_PRICE = 'SETTING_MIN_MISC_PRICE';
     const SETTING_MAX_MISC_PRICE = 'SETTING_MAX_MISC_PRICE';
     const SETTING_PRICE_OFFSET = 'SETTING_PRICE_OFFSET';
+    const SETTING_PRICE_MIN_CHECK_PRICE = 'SETTING_PRICE_MIN_CHECK_PRICE';
     const SETTING_PRICE_ALGORITHM = 'SETTING_PRICE_ALGORITHM';
     const SETTING_PRICE_IGNORE_LOWEST_Q = 'SETTING_PRICE_IGNORE_LOWEST_Q';
     const SETTING_PRICE_HISTORY_HOURS = 'SETTING_PRICE_HISTORY_HOURS';
@@ -122,6 +124,7 @@
         SETTING_MIN_MISC_PRICE: 0.05,
         SETTING_MAX_MISC_PRICE: 10,
         SETTING_PRICE_OFFSET: 0.00,
+        SETTING_PRICE_MIN_CHECK_PRICE: 0.00,
         SETTING_PRICE_ALGORITHM: 1,
         SETTING_PRICE_IGNORE_LOWEST_Q: 1,
         SETTING_PRICE_HISTORY_HOURS: 12,
@@ -186,7 +189,7 @@
             localStorage.setItem(name, value);
             return true;
         } catch (e) {
-            logConsole('Failed to set local storage item ' + name + ', ' + e + '.')
+            logConsole('无法设置localStorage内容，名称：' + name + '，原因：' + e + '。')
             return false;
         }
     }
@@ -204,7 +207,7 @@
             sessionStorage.setItem(name, value);
             return true;
         } catch (e) {
-            logConsole('Failed to set session storage item ' + name + ', ' + e + '.')
+            logConsole('无法设置sessionStorage内容，名称：' + name + '，原因：' + e + '。')
             return false;
         }
     }
@@ -688,9 +691,9 @@
     //
     //{
     //"success" : 1,
-    //"sell_order_table" : "<table class=\"market_commodity_orders_table\"><tr><th align=\"right\">售价<\/th><th align=\"right\">数量<\/th><\/tr><tr><td align=\"right\" class=\"\">0,04\u20ac<\/td><td align=\"right\">311<\/td><\/tr><tr><td align=\"right\" class=\"\">0,05\u20ac<\/td><td align=\"right\">895<\/td><\/tr><tr><td align=\"right\" class=\"\">0,06\u20ac<\/td><td align=\"right\">495<\/td><\/tr><tr><td align=\"right\" class=\"\">0,07\u20ac<\/td><td align=\"right\">174<\/td><\/tr><tr><td align=\"right\" class=\"\">0,08\u20ac<\/td><td align=\"right\">49<\/td><\/tr><tr><td align=\"right\" class=\"\">0,09\u20ac or more<\/td><td align=\"right\">41<\/td><\/tr><\/table>",
+    //"sell_order_table" : "<table class=\"market_commodity_orders_table\"><tr><th align=\"right\">Price<\/th><th align=\"right\">Quantity<\/th><\/tr><tr><td align=\"right\" class=\"\">0,04\u20ac<\/td><td align=\"right\">311<\/td><\/tr><tr><td align=\"right\" class=\"\">0,05\u20ac<\/td><td align=\"right\">895<\/td><\/tr><tr><td align=\"right\" class=\"\">0,06\u20ac<\/td><td align=\"right\">495<\/td><\/tr><tr><td align=\"right\" class=\"\">0,07\u20ac<\/td><td align=\"right\">174<\/td><\/tr><tr><td align=\"right\" class=\"\">0,08\u20ac<\/td><td align=\"right\">49<\/td><\/tr><tr><td align=\"right\" class=\"\">0,09\u20ac or more<\/td><td align=\"right\">41<\/td><\/tr><\/table>",
     //"sell_order_summary" : "<span class=\"market_commodity_orders_header_promote\">1965<\/span> for sale starting at <span class=\"market_commodity_orders_header_promote\">0,04\u20ac<\/span>",
-    //"buy_order_table" : "<table class=\"market_commodity_orders_table\"><tr><th align=\"right\">售价<\/th><th align=\"right\">数量<\/th><\/tr><tr><td align=\"right\" class=\"\">0,03\u20ac<\/td><td align=\"right\">93<\/td><\/tr><\/table>",
+    //"buy_order_table" : "<table class=\"market_commodity_orders_table\"><tr><th align=\"right\">Price<\/th><th align=\"right\">Quantity<\/th><\/tr><tr><td align=\"right\" class=\"\">0,03\u20ac<\/td><td align=\"right\">93<\/td><\/tr><\/table>",
     //"buy_order_summary" : "<span class=\"market_commodity_orders_header_promote\">93<\/span> requests to buy at <span class=\"market_commodity_orders_header_promote\">0,03\u20ac<\/span> or lower",
     //"highest_buy_order" : "3",
     //"lowest_sell_order" : "4",
@@ -822,7 +825,7 @@
             previousName = name;
             name = name.replace('?', '%3F')
                 .replace('#', '%23')
-                .replace('        ', '%09');
+                .replace('	', '%09');
         }
         return name;
     }
@@ -1214,8 +1217,8 @@
                     var padLeft = padLeftZero('' + totalNumberOfProcessedQueueItems, digits) + ' / ' + totalNumberOfQueuedItems;
 
                     if (err != ERROR_SUCCESS) {
-                        logConsole('Failed to get gems value for ' + itemName);
-                        logDOM(padLeft + ' - ' + itemName + ' 由于缺少宝石值而未变成宝石');
+                        logConsole('无法获取 ' + itemName + ' 分解后的宝石数。');
+                        logDOM(padLeft + ' - ' + itemName + ' 由于缺少宝石数而未变成宝石');
 
                         $('#' + item.appid + '_' + item.contextid + '_' + itemId).css('background', COLOR_ERROR);
                         return callback(false);
@@ -1226,7 +1229,7 @@
                     market.grindIntoGoo(item,
                         function(err, result) {
                             if (err != ERROR_SUCCESS) {
-                                logConsole('Failed to turn item into gems for ' + itemName);
+                                logConsole('无法将' + itemName + '分解为宝石。');
                                 logDOM(padLeft + ' - ' + itemName + ' 由于未知错误，未分解为宝石');
 
                                 $('#' + item.appid + '_' + item.contextid + '_' + itemId).css('background', COLOR_ERROR);
@@ -1235,8 +1238,8 @@
 
                             logConsole('============================')
                             logConsole(itemName);
-                            logConsole('Turned into ' + goo.goo_value + ' gems');
-                            logDOM(padLeft + ' - ' + itemName + ' 已分解为 ' + item.goo_value_expected + ' 个 宝石.');
+                            logConsole('分解为 ' + goo.goo_value + '个 宝石');
+                            logDOM(padLeft + ' - ' + itemName + ' 已分解为 ' + item.goo_value_expected + '个 宝石.');
                             $('#' + item.appid + '_' + item.contextid + '_' + itemId).css('background', COLOR_SUCCESS);
 
                             totalScrap += item.goo_value_expected;
@@ -1285,7 +1288,7 @@
                     var padLeft = padLeftZero('' + totalNumberOfProcessedQueueItems, digits) + ' / ' + totalNumberOfQueuedItems;
 
                     if (err != ERROR_SUCCESS) {
-                        logConsole('Failed to unpack booster pack ' + itemName);
+                        logConsole('无法拆开补充包 ' + itemName);
                         logDOM(padLeft + ' - ' + itemName + ' 拆包失败.');
 
                         $('#' + item.appid + '_' + item.contextid + '_' + itemId).css('background', COLOR_ERROR);
@@ -1342,7 +1345,7 @@
                     $('#inventory_items_spinner').remove();
                     $('#inventory_sell_buttons').append('<div id="inventory_items_spinner">' +
                         spinnerBlock +
-                        '<div style="text-align:center">正在处理 ' + numberOfQueuedItems + ' 个 物品</div>' +
+                        '<div style="text-align:center">正在处理 ' + numberOfQueuedItems + '个 物品</div>' +
                         '</div>');
                 }
             }, function() {
@@ -1392,7 +1395,7 @@
                     $('#inventory_items_spinner').remove();
                     $('#inventory_sell_buttons').append('<div id="inventory_items_spinner">' +
                         spinnerBlock +
-                        '<div style="text-align:center">正在处理 ' + numberOfQueuedItems + ' 个 物品</div>' +
+                        '<div style="text-align:center">正在处理 ' + numberOfQueuedItems + '个 物品</div>' +
                         '</div>');
                 }
             }, function() {
@@ -1403,6 +1406,54 @@
         function sellSelectedItems() {
             getInventorySelectedMarketableItems(function(items) {
                 sellItems(items);
+            });
+        }
+
+        function canSellSelectedItemsManually(items) {
+            // We have to construct an URL like this
+            // https://steamcommunity.com/market/multisell?appid=730&contextid=2&items[]=Falchion%20Case&qty[]=100
+            var appid = items[0].appid;
+            var contextid = items[0].contextid;
+
+            var hasInvalidItem = false;
+
+            items.forEach(function(item) {
+				if (item.contextid != contextid || item.commodity == false)
+				    hasInvalidItem = true;
+            });
+
+            return !hasInvalidItem;
+        }
+
+        function sellSelectedItemsManually() {
+            getInventorySelectedMarketableItems(function(items) {
+                // We have to construct an URL like this
+                // https://steamcommunity.com/market/multisell?appid=730&contextid=2&items[]=Falchion%20Case&qty[]=100
+
+				var appid = items[0].appid;
+                var contextid = items[0].contextid;
+
+                var itemsWithQty = {};
+
+                items.forEach(function(item) {
+                   itemsWithQty[item.market_hash_name] = itemsWithQty[item.market_hash_name] + 1 || 1;
+                });
+
+                var itemsString = '';
+                for (var itemName in itemsWithQty) {
+                    itemsString += '&items[]=' + encodeURI(itemName) + '&qty[]=' + itemsWithQty[itemName];
+                }
+
+                var baseUrl = 'https://steamcommunity.com/market/multisell';
+                var redirectUrl = baseUrl + '?appid=' + appid + '&contextid=' + contextid + itemsString;
+
+                var dialog = unsafeWindow.ShowDialog('Steam Economy Enhancer', '<iframe frameBorder="0" height="450" width="900" src="' + redirectUrl + '"></iframe>');
+                dialog.OnDismiss(function() {
+                    items.forEach(function(item) {
+                        var itemId = item.assetid || item.id;
+                        $('#' + item.appid + '_' + item.contextid + '_' + itemId).css('background', COLOR_PENDING);
+                    });
+                });
             });
         }
 
@@ -1434,7 +1485,7 @@
                 $('#inventory_items_spinner').remove();
                 $('#inventory_sell_buttons').append('<div id="inventory_items_spinner">' +
                     spinnerBlock +
-                    '<div style="text-align:center">正在处理 ' + numberOfQueuedItems + ' 个 物品</div>' +
+                    '<div style="text-align:center">正在处理 ' + numberOfQueuedItems + '个 物品</div>' +
                     '</div>');
             }
         }
@@ -1479,7 +1530,7 @@
                 true,
                 function(err, history, cachedHistory) {
                     if (err) {
-                        logConsole('Failed to get price history for ' + itemName);
+                        logConsole('无法获取 ' + itemName + ' 的价格历史');
 
                         if (err == ERROR_FAILED)
                             failed += 1;
@@ -1489,7 +1540,7 @@
                         true,
                         function(err, histogram, cachedListings) {
                             if (err) {
-                                logConsole('Failed to get orders histogram for ' + itemName);
+                                logConsole('无法获取 ' + itemName + ' 的订单直方图');
 
                                 if (err == ERROR_FAILED)
                                     failed += 1;
@@ -1509,7 +1560,7 @@
                                 priceInfo.maxPriceBeforeFees);
 
 
-                            logConsole('Sell price: ' +
+                            logConsole('售价：' +
                                 sellPrice / 100.0 +
                                 ' (' +
                                 market.getPriceIncludingFees(sellPrice) / 100.0 +
@@ -1686,10 +1737,16 @@
                 var selectedItems = items.length;
                 if (items.length == 0) {
                     $('.sell_selected').hide();
+                    $('.sell_manual').hide();
                 } else {
                     $('.sell_selected').show();
-                    $('.sell_selected > span')
-                        .text('出售 ' + selectedItems + (selectedItems == 1 ? ' 个 物品' : ' 个 物品'));
+                    if (canSellSelectedItemsManually(items)) {
+                        $('.sell_manual').show();
+                        $('.sell_manual > span').text('手动出售 ' + selectedItems + '个 物品');
+                    } else {
+                        $('.sell_manual').hide();
+                    }
+                    $('.sell_selected > span').text('出售 ' + selectedItems + '个 物品');
                 }
             });
         }
@@ -1703,7 +1760,7 @@
                 } else {
                     $('.turn_into_gems').show();
                     $('.turn_into_gems > span')
-                        .text('分解 ' + selectedItems + (selectedItems == 1 ? ' 个 物品' : ' 个 物品为宝石'));
+                        .text('分解 ' + selectedItems + '个 物品为宝石');
                 }
             });
         }
@@ -1717,7 +1774,7 @@
                 } else {
                     $('.unpack_booster_packs').show();
                     $('.unpack_booster_packs > span')
-                        .text('拆开 ' + selectedItems + (selectedItems == 1 ? ' 个 补充包' : ' 个 补充包'));
+                        .text('拆开 ' + selectedItems + '个 补充包');
                 }
             });
         }
@@ -1774,7 +1831,7 @@
                 false,
                 function(err, histogram) {
                     if (err) {
-                        logConsole('Failed to get orders histogram for ' + (getActiveInventory().selectedItem.name || getActiveInventory().selectedItem.description.name));
+                        logConsole('无法获取 ' + (getActiveInventory().selectedItem.name || getActiveInventory().selectedItem.description.name) + ' 的订单直方图');
                         return;
                     }
 
@@ -1900,7 +1957,8 @@
 
             var sellButtons = $('<div id="inventory_sell_buttons" style="margin-bottom:12px;">' +
                 '<a class="btn_green_white_innerfade btn_medium_wide sell_all separator-btn-right"><span>出售所有物品</span></a>' +
-                '<a class="btn_green_white_innerfade btn_medium_wide sell_selected separator-btn-right" style="display:none"><span>出售所选商品</span></a>' +
+                '<a class="btn_green_white_innerfade btn_medium_wide sell_selected separator-btn-right" style="display:none"><span>出售所选物品</span></a>' +
+                '<a class="btn_green_white_innerfade btn_medium_wide sell_manual separator-btn-right" style="display:none"><span>手动出售物品</span></a>' +
                 (showMiscOptions ?
                     '<a class="btn_green_white_innerfade btn_medium_wide sell_all_cards separator-btn-right"><span>出售所有卡牌</span></a>' +
                     '<div style="margin-top:12px;">' +
@@ -1911,8 +1969,7 @@
                 '</div>');
 
             var reloadButton =
-                $(
-                    '<a id="inventory_reload_button" class="btn_darkblue_white_innerfade btn_medium_wide reload_inventory" style="margin-right:12px"><span>重新加载库存</span></a>');
+                $('<a id="inventory_reload_button" class="btn_darkblue_white_innerfade btn_medium_wide reload_inventory" style="margin-right:12px"><span>重新加载库存</span></a>');
 
             $('#inventory_logos')[0].style.height = 'auto';
 
@@ -1939,6 +1996,7 @@
                         sellAllItems(appId);
                     });
                 $('.sell_selected').on('click', '*', sellSelectedItems);
+                $('.sell_manual').on('click', '*', sellSelectedItemsManually);
                 $('.sell_all_cards').on('click', '*', sellAllCards);
                 $('.turn_into_gems').on('click', '*', turnSelectedItemsIntoGems);
                 $('.unpack_booster_packs').on('click', '*', unpackSelectedBoosterPacks);
@@ -2101,7 +2159,7 @@
                 true,
                 function(err, histogram, cachedListings) {
                     if (err) {
-                        logConsole('Failed to get orders histogram for ' + itemName);
+                        logConsole('无法获取 ' + itemName + ' 的订单历史直方图');
 
                         if (err == ERROR_FAILED)
                             failed += 1;
@@ -2185,7 +2243,6 @@
         function marketListingsQueueWorker(listing, ignoreErrors, callback) {
             var asset = unsafeWindow.g_rgAssets[listing.appid][listing.contextid][listing.assetid];
 
-
             // An asset:
             //{
             // "currency" : 0,
@@ -2234,6 +2291,14 @@
             var game_name = asset.type;
             var price = getPriceFromMarketListing($('.market_listing_price > span:nth-child(1) > span:nth-child(1)', listingUI).text());
 
+            if (price <= getSettingWithDefault(SETTING_PRICE_MIN_CHECK_PRICE) * 100) {
+                $('.market_listing_my_price', listingUI).last().css('background', COLOR_PRICE_NOT_CHECKED);
+                $('.market_listing_my_price', listingUI).last().prop('title', 'The price is not checked.');
+                listingUI.addClass('not_checked');
+
+                return callback(true, true);
+            }
+
             var priceInfo = getPriceInformationFromItem(asset);
             var item = {
                 appid: parseInt(appid),
@@ -2248,7 +2313,7 @@
                 true,
                 function(errorPriceHistory, history, cachedHistory) {
                     if (errorPriceHistory) {
-                        logConsole('Failed to get price history for ' + game_name);
+                        logConsole('无法获取 ' + game_name + ' 的价格历史');
 
                         if (errorPriceHistory == ERROR_FAILED)
                             failed += 1;
@@ -2258,7 +2323,7 @@
                         true,
                         function(errorHistogram, histogram, cachedListings) {
                             if (errorHistogram) {
-                                logConsole('Failed to get orders histogram for ' + game_name);
+                                logConsole('无法获取 '+ game_name + ' 的订单历史直方图');
 
                                 if (errorHistogram == ERROR_FAILED)
                                     failed += 1;
@@ -2730,7 +2795,7 @@
                 // Show the spinner so the user knows that something is going on.
                 $('.my_market_header').eq(0).append('<div id="market_listings_spinner">' +
                     spinnerBlock +
-                    '<div style="text-align:center">加载交易列表中...</div>' +
+                    '<div style="text-align:center">正在加载交易列表...</div>' +
                     '</div>');
 
                 while (currentCount < totalCount) {
@@ -2792,7 +2857,7 @@
         function sortMarketListings(elem, isPrice, isDate, isName) {
             var list = getListFromContainer(elem);
             if (list == null) {
-                console.log('Invalid parameter, could not find a list matching elem.');
+                console.log('无效参数，找不到匹配元素的列表。');
                 return;
             }
 
@@ -3139,7 +3204,7 @@
                 return a[1] - b[1];
             }).reverse();
 
-            var totalText = '<strong>Number of items: ' + sortable.length + ', worth ' + (totalPrice / 100).toFixed(2) + currencySymbol + '<br/><br/></strong>';
+            var totalText = '<strong>物品数量：' + sortable.length + '，价值 ' + (totalPrice / 100).toFixed(2) + currencySymbol + '<br/><br/></strong>';
 
             for (var i = 0; i < sortable.length; i++) {
                 totalText += sortable[i][1] + 'x ' + sortable[i][0] + '<br/>';
@@ -3227,7 +3292,7 @@
             '<br/>' +
             '<div class="trade_offer_buttons">' +
             '<a class="item_market_action_button item_market_action_button_green select_all" style="margin-top:1px">' +
-            '<span class="item_market_action_button_contents" style="text-transform:none">删除选中物品 from page</span>' +
+            '<span class="item_market_action_button_contents" style="text-transform:none">选中页面中全部物品</span>' +
             '</a>' +
             '</div>');
 
@@ -3250,51 +3315,55 @@
     function openSettings() {
         var price_options = $('<div id="price_options">' +
             '<div style="margin-bottom:6px;">' +
-            '基准价格计算方式:&nbsp;<select class="price_option_input" style="background-color: black;color: white;border: transparent;" id="' + SETTING_PRICE_ALGORITHM + '">' +
-            '<option value="1"' + (getSettingWithDefault(SETTING_PRICE_ALGORITHM) == 1 ? 'selected="selected"' : '') + '>过去12小时的均价 和 当前最低售价 两个数间取大值</option>' +
-            '<option value="2" ' + (getSettingWithDefault(SETTING_PRICE_ALGORITHM) == 2 ? 'selected="selected"' : '') + '>当前最低售价</option>' +
-            '<option value="3" ' + (getSettingWithDefault(SETTING_PRICE_ALGORITHM) == 3 ? 'selected="selected"' : '') + '>当前最高买入价或最低卖价</option>' +
+            '基准价格计算方式：<select class="price_option_input" style="background-color: black;color: white;border: transparent;" id="' + SETTING_PRICE_ALGORITHM + '">' +
+            '<option value="1"' + (getSettingWithDefault(SETTING_PRICE_ALGORITHM) == 1 ? 'selected="selected"' : '') + '>历史均价 和 最低售价 之间的最大值</option>' +
+            '<option value="2" ' + (getSettingWithDefault(SETTING_PRICE_ALGORITHM) == 2 ? 'selected="selected"' : '') + '>最低售价</option>' +
+            '<option value="3" ' + (getSettingWithDefault(SETTING_PRICE_ALGORITHM) == 3 ? 'selected="selected"' : '') + '>当前 最高买入价 或 最低售价</option>' +
             '</select>' +
             '<br/>' +
             '</div>' +
             '<div style="margin-bottom:6px;">' +
-            '计算多少小时内的平均历史价格:&nbsp;<input class="price_option_input" style="background-color: black;color: white;border: transparent;" type="number" step="2" id="' + SETTING_PRICE_HISTORY_HOURS + '" value=' + getSettingWithDefault(SETTING_PRICE_HISTORY_HOURS) + '>' +
+            '计算多少小时内的历史均价：<input class="price_option_input" style="background-color: black;color: white;border: transparent;" type="number" step="2" id="' + SETTING_PRICE_HISTORY_HOURS + '" value=' + getSettingWithDefault(SETTING_PRICE_HISTORY_HOURS) + '>' +
             '</div>' +
             '<div style="margin-bottom:6px;">' +
-            '价格补正（基于“基准价格”在批量出售时进行调价，可为负数）:&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_PRICE_OFFSET + '" value=' + getSettingWithDefault(SETTING_PRICE_OFFSET) + '>' +
+            '价格补正（基于“基准价格”在批量出售时进行调价，可为负数）；<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_PRICE_OFFSET + '" value=' + getSettingWithDefault(SETTING_PRICE_OFFSET) + '>' +
             '<br/>' +
             '</div>' +
             '<div style="margin-top:6px">' +
-            '在当前最低售价较少时，使用第二低售价:&nbsp;<input class="price_option_input" style="background-color: black;color: white;border: transparent;" type="checkbox" id="' + SETTING_PRICE_IGNORE_LOWEST_Q + '" ' + (getSettingWithDefault(SETTING_PRICE_IGNORE_LOWEST_Q) == 1 ? 'checked=""' : '') + '>' +
+            '在当前最低售价较少时，使用第二低售价：<input class="price_option_input" style="background-color: black;color: white;border: transparent;" type="checkbox" id="' + SETTING_PRICE_IGNORE_LOWEST_Q + '" ' + (getSettingWithDefault(SETTING_PRICE_IGNORE_LOWEST_Q) == 1 ? 'checked=""' : '') + '>' +
+            '<br/>' +
+            '</div>' +
+            '<div style="margin-top:6px;">' +
+            '不检查指定价格及以下的市场列表：<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_PRICE_MIN_CHECK_PRICE + '" value=' + getSettingWithDefault(SETTING_PRICE_MIN_CHECK_PRICE) + '>' +
             '<br/>' +
             '</div>' +
             '<div style="margin-top:24px">' +
-            '在库存中显示价格标签:&nbsp;<input class="price_option_input" style="background-color: black;color: white;border: transparent;" type="checkbox" id="' + SETTING_INVENTORY_PRICE_LABELS + '" ' + (getSettingWithDefault(SETTING_INVENTORY_PRICE_LABELS) == 1 ? 'checked=""' : '') + '>' +
+            '在库存中显示价格标签：<input class="price_option_input" style="background-color: black;color: white;border: transparent;" type="checkbox" id="' + SETTING_INVENTORY_PRICE_LABELS + '" ' + (getSettingWithDefault(SETTING_INVENTORY_PRICE_LABELS) == 1 ? 'checked=""' : '') + '>' +
             '</div>' +
             '<div style="margin-top:6px">' +
-            '在交易报价中显示价格标签:&nbsp;<input class="price_option_input" style="background-color: black;color: white;border: transparent;" type="checkbox" id="' + SETTING_TRADEOFFER_PRICE_LABELS + '" ' + (getSettingWithDefault(SETTING_TRADEOFFER_PRICE_LABELS) == 1 ? 'checked=""' : '') + '>' +
+            '在交易报价中显示价格标签：<input class="price_option_input" style="background-color: black;color: white;border: transparent;" type="checkbox" id="' + SETTING_TRADEOFFER_PRICE_LABELS + '" ' + (getSettingWithDefault(SETTING_TRADEOFFER_PRICE_LABELS) == 1 ? 'checked=""' : '') + '>' +
             '</div>' +
             '<div style="margin-top:24px">' +
             '<div style="margin-bottom:6px;">' +
-            '最低售价:&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MIN_NORMAL_PRICE + '" value=' + getSettingWithDefault(SETTING_MIN_NORMAL_PRICE) + '>&nbsp;' +
-            '最高售价:&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MAX_NORMAL_PRICE + '" value=' + getSettingWithDefault(SETTING_MAX_NORMAL_PRICE) + '>&nbsp;普通卡牌的价格' +
+            '最低售价：<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MIN_NORMAL_PRICE + '" value=' + getSettingWithDefault(SETTING_MIN_NORMAL_PRICE) + '>&nbsp;' +
+            '最高售价：<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MAX_NORMAL_PRICE + '" value=' + getSettingWithDefault(SETTING_MAX_NORMAL_PRICE) + '>&nbsp;普通卡牌的价格' +
             '<br/>' +
             '</div>' +
             '<div style="margin-bottom:6px;">' +
-            '最低售价:&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MIN_FOIL_PRICE + '" value=' + getSettingWithDefault(SETTING_MIN_FOIL_PRICE) + '>&nbsp;' +
-            '最高售价:&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MAX_FOIL_PRICE + '" value=' + getSettingWithDefault(SETTING_MAX_FOIL_PRICE) + '>&nbsp;闪亮卡牌的价格' +
+            '最低售价：<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MIN_FOIL_PRICE + '" value=' + getSettingWithDefault(SETTING_MIN_FOIL_PRICE) + '>&nbsp;' +
+            '最高售价：<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MAX_FOIL_PRICE + '" value=' + getSettingWithDefault(SETTING_MAX_FOIL_PRICE) + '>&nbsp;闪亮卡牌的价格' +
             '<br/>' +
             '</div>' +
             '<div style="margin-bottom:6px;">' +
-            '最低售价:&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MIN_MISC_PRICE + '" value=' + getSettingWithDefault(SETTING_MIN_MISC_PRICE) + '>&nbsp;' +
-            '最高售价:&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MAX_MISC_PRICE + '" value=' + getSettingWithDefault(SETTING_MAX_MISC_PRICE) + '>&nbsp;其他物品的价格' +
+            '最低售价：<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MIN_MISC_PRICE + '" value=' + getSettingWithDefault(SETTING_MIN_MISC_PRICE) + '>&nbsp;' +
+            '最高售价：<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MAX_MISC_PRICE + '" value=' + getSettingWithDefault(SETTING_MAX_MISC_PRICE) + '>&nbsp;其他物品的价格' +
             '<br/>' +
             '</div>' +
             '<div style="margin-top:24px;margin-bottom:6px;">' +
-            '市场中每页的物品数量:&nbsp;<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MARKET_PAGE_COUNT + '" value=' + getSettingWithDefault(SETTING_MARKET_PAGE_COUNT) + '>' +
+            '市场中每页的物品数量：<input class="price_option_input price_option_price" style="background-color: black;color: white;border: transparent;" type="number" step="0.01" id="' + SETTING_MARKET_PAGE_COUNT + '" value=' + getSettingWithDefault(SETTING_MARKET_PAGE_COUNT) + '>' +
             '<br/>' +
             '<div style="margin-top:6px;">' +
-            '自动上架定价高于市场的物品（当库存较多时，会产生较高的耗时）:&nbsp;<input id="' + SETTING_RELIST_AUTOMATICALLY + '" class="market_relist_auto" type="checkbox" ' + (getSettingWithDefault(SETTING_RELIST_AUTOMATICALLY) == 1 ? 'checked=""' : '') + '>' +
+            '自动上架定价高于市场的物品（当库存较多时，耗时较高）：<input id="' + SETTING_RELIST_AUTOMATICALLY + '" class="market_relist_auto" type="checkbox" ' + (getSettingWithDefault(SETTING_RELIST_AUTOMATICALLY) == 1 ? 'checked=""' : '') + '>' +
             '</label>' +
             '</div>' +
             '</div>' +
@@ -3308,6 +3377,7 @@
             setSetting(SETTING_MIN_MISC_PRICE, $('#' + SETTING_MIN_MISC_PRICE, price_options).val());
             setSetting(SETTING_MAX_MISC_PRICE, $('#' + SETTING_MAX_MISC_PRICE, price_options).val());
             setSetting(SETTING_PRICE_OFFSET, $('#' + SETTING_PRICE_OFFSET, price_options).val());
+            setSetting(SETTING_PRICE_MIN_CHECK_PRICE, $('#' + SETTING_PRICE_MIN_CHECK_PRICE, price_options).val());
             setSetting(SETTING_PRICE_ALGORITHM, $('#' + SETTING_PRICE_ALGORITHM, price_options).val());
             setSetting(SETTING_PRICE_IGNORE_LOWEST_Q, $('#' + SETTING_PRICE_IGNORE_LOWEST_Q, price_options).prop('checked') ? 1 : 0);
             setSetting(SETTING_PRICE_HISTORY_HOURS, $('#' + SETTING_PRICE_HISTORY_HOURS, price_options).val());
