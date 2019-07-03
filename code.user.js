@@ -486,28 +486,38 @@
 
     SteamMarket.prototype.getGooValue = function(item, callback) {
         try {
-            var sessionId = readCookie('sessionid');
-            $.ajax({
-                type: "GET",
-                url: this.inventoryUrlBase + 'ajaxgetgoovalue/',
-                data: {
-                    sessionid: sessionId,
-                    appid: item.market_fee_app,
-                    assetid: item.assetid,
-                    contextid: item.contextid
-                },
-                success: function(data) {
-                    callback(ERROR_SUCCESS, data);
-                },
-                error: function(data) {
-                    return callback(ERROR_FAILED, data);
-                },
-                crossDomain: true,
-                xhrFields: {
-                    withCredentials: true
-                },
-                dataType: 'json'
-            });
+            for (var i = 0; i < item.owner_actions.length; i++) {
+                var action = item.owner_actions[i];
+                if ( !action.link || !action.name ) {
+                    continue;
+                }
+                if (action.link.match(/^javascript:GetGooValue/)) {
+                    var item_data = action.link.split(',');
+                    var appid = item_data[2].trim();
+                    var item_type = item_data[3].trim();
+                    var border_color = item_data[4].trim();
+                    $.ajax({
+                        type: "GET",
+                        url: window.location.protocol+'//steamcommunity.com/auction/ajaxgetgoovalueforitemtype/',
+                        data: {
+                            appid: appid,
+                            item_type: item_type,
+                            border_color: border_color
+                        },
+                        success: function(data) {
+                            callback(ERROR_SUCCESS, data);
+                        },
+                        error: function(data) {
+                            return callback(ERROR_FAILED, data);
+                        },
+                        crossDomain: true,
+                        xhrFields: {
+                            withCredentials: true
+                        },
+                        dataType: 'json'
+                    });
+                }
+            }
         } catch (e) {
             return callback(ERROR_FAILED);
         }
@@ -519,7 +529,6 @@
         //assetid = 4830605461
         //contextid = 6
     }
-
 
     // Grinds the item into gems.
     SteamMarket.prototype.grindIntoGoo = function(item, callback) {
@@ -1083,7 +1092,7 @@
                     '.</strong></div>';
             }
             if (totalScrap > 0) {
-                totals.innerHTML += '<div><strong>Total scrap ' + totalScrap + '.</strong></div>';
+                totals.innerHTML += '<div><strong>总共分解：' + totalScrap + '</strong></div>';
             }
         }
 
