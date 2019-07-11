@@ -3,7 +3,7 @@
 // @namespace   https://github.com/Nuklon
 // @author      Nuklon
 // @license     MIT
-// @version     6.7.6
+// @version     6.8.0
 // @description 增强 Steam 库存和 Steam 市场功能
 // @include     *://steamcommunity.com/id/*/inventory*
 // @include     *://steamcommunity.com/profiles/*/inventory*
@@ -21,8 +21,8 @@
 // @grant       unsafeWindow
 // @homepageURL https://steamcn.com/t311996-1-1
 // @supportURL  https://steamcn.com/t311996-1-1
-// @downloadURL https://github.com/Sneer-Cat/Steam-Economy-Enhancer/raw/master/code.user.js
-// @updateURL   https://github.com/Sneer-Cat/Steam-Economy-Enhancer/raw/master/code.user.js
+// @downloadURL https://raw.githubusercontent.com/Sneer-Cat/Steam-Economy-Enhancer/master/code.user.js
+// @updateURL   https://raw.githubusercontent.com/Sneer-Cat/Steam-Economy-Enhancer/master/code.user.js
 // ==/UserScript==
 // jQuery is already added by Steam, force no conflict mode.
 (function($, async) {
@@ -411,7 +411,11 @@
                 price: price
             },
             success: function(data) {
-                callback(ERROR_SUCCESS, data);
+                if (data.success === false && isRetryMessage(data.message)) {
+                    callback(ERROR_FAILED, data);
+                } else {
+                    callback(ERROR_SUCCESS, data);
+                }
             },
             error: function(data) {
                 return callback(ERROR_FAILED, data);
@@ -1032,6 +1036,16 @@
         }
         return null;
     }
+
+    function isRetryMessage(message) {
+        var messageList = [
+            "在上一个操作完成之前，您不能出售任何物品。",
+            "列出您的物品时出现问题。刷新页面并重试。",
+            "我们无法连接到游戏物品服务器。游戏物品服务器可能已经关闭，或 Steam 可能正面临临时连接问题。您的列表尚未创建。请刷新页面并重试。"
+        ];
+
+        return messageList.indexOf(message) !== -1;
+    }
     //#endregion
 
     //#region Logging
@@ -1124,6 +1138,21 @@
                             totalPriceWithoutFeesOnMarket += task.sellPrice;
                             totalPriceWithFeesOnMarket += market.getPriceIncludingFees(task.sellPrice);
                             updateTotals();
+                        } else if (data != null && isRetryMessage(data.message)) {
+                            logDOM(padLeft +
+                                ' - ' +
+                                itemName +
+                                ' 正在重试列出物品，原因为 ' +
+                                data.message[0].toLowerCase() +
+                                data.message.slice(1));
+
+                            totalNumberOfProcessedQueueItems--;
+                            sellQueue.unshift(task);
+                            sellQueue.pause();
+
+                            setTimeout(function() {
+                                sellQueue.resume();
+                            }, getRandomInt(30000, 45000));
                         } else {
                             if (data != null && data.responseJSON != null && data.responseJSON.message != null) {
                                 logDOM(padLeft +
@@ -1456,7 +1485,7 @@
                 var baseUrl = 'https://steamcommunity.com/market/multisell';
                 var redirectUrl = baseUrl + '?appid=' + appid + '&contextid=' + contextid + itemsString;
 
-                var dialog = unsafeWindow.ShowDialog('Steam Economy Enhancer', '<iframe frameBorder="0" height="450" width="900" src="' + redirectUrl + '"></iframe>');
+                var dialog = unsafeWindow.ShowDialog('Steam Economy Enhancer', '<iframe frameBorder="0" height="650" width="900" src="' + redirectUrl + '"></iframe>');
                 dialog.OnDismiss(function() {
                     items.forEach(function(item) {
                         var itemId = item.assetid || item.id;
