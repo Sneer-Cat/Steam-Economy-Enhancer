@@ -5,10 +5,10 @@
 // @license     MIT
 // @version     6.8.0
 // @description 增强 Steam 库存和 Steam 市场功能
-// @include     *://steamcommunity.com/id/*/inventory*
-// @include     *://steamcommunity.com/profiles/*/inventory*
-// @include     *://steamcommunity.com/market*
-// @include     *://steamcommunity.com/tradeoffer*
+// @include     *://steampowered.com/id/*/inventory*
+// @include     *://steampowered.com/profiles/*/inventory*
+// @include     *://steampowered.com/market*
+// @include     *://steampowered.com/tradeoffer*
 // @require     https://code.jquery.com/jquery-3.3.1.min.js
 // @require     https://code.jquery.com/ui/1.12.1/jquery-ui.min.js
 // @require     https://raw.githubusercontent.com/kapetan/jquery-observe/ca67b735bb3ae8d678d1843384ebbe7c02466c61/jquery-observe.js
@@ -75,7 +75,7 @@
     var market = new SteamMarket(unsafeWindow.g_rgAppContextData,
         typeof unsafeWindow.g_strInventoryLoadURL !== 'undefined' && unsafeWindow.g_strInventoryLoadURL != null ?
         unsafeWindow.g_strInventoryLoadURL :
-        location.protocol + '//steamcommunity.com/my/inventory/json/',
+        location.protocol + '//steampowered.com/my/inventory/json/',
         isLoggedIn ? unsafeWindow.g_rgWalletInfo : undefined);
 
     var currencyId =
@@ -401,7 +401,7 @@
         var itemId = item.assetid || item.id;
         $.ajax({
             type: "POST",
-            url: 'https://steamcommunity.com/market/sellitem/',
+            url: 'https://steampowered.com/market/sellitem/',
             data: {
                 sessionid: sessionId,
                 appid: item.appid,
@@ -434,7 +434,7 @@
         var sessionId = readCookie('sessionid');
         $.ajax({
             type: "POST",
-            url: window.location.protocol + '//steamcommunity.com/market/removelisting/' + item,
+            url: window.location.protocol + '//steampowered.com/market/removelisting/' + item,
             data: {
                 sessionid: sessionId
             },
@@ -502,7 +502,7 @@
                     var border_color = item_data[4].trim();
                     $.ajax({
                         type: "GET",
-                        url: window.location.protocol+'//steamcommunity.com/auction/ajaxgetgoovalueforitemtype/',
+                        url: window.location.protocol+'//steampowered.com/auction/ajaxgetgoovalueforitemtype/',
                         data: {
                             appid: appid,
                             item_type: item_type,
@@ -525,9 +525,9 @@
         } catch (e) {
             return callback(ERROR_FAILED);
         }
-        //http://steamcommunity.com/auction/ajaxgetgoovalueforitemtype/?appid=582980&item_type=18&border_color=0
+        //http://steampowered.com/auction/ajaxgetgoovalueforitemtype/?appid=582980&item_type=18&border_color=0
         // OR
-        //http://steamcommunity.com/my/ajaxgetgoovalue/?sessionid=xyz&appid=535690&assetid=4830605461&contextid=6
+        //http://steampowered.com/my/ajaxgetgoovalue/?sessionid=xyz&appid=535690&assetid=4830605461&contextid=6
         //sessionid=xyz
         //appid = 535690
         //assetid = 4830605461
@@ -569,7 +569,7 @@
         //assetid = 4830605461
         //contextid = 6
         //goo_value_expected = 10
-        //http://steamcommunity.com/my/ajaxgrindintogoo/
+        //http://steampowered.com/my/ajaxgrindintogoo/
     }
 
 
@@ -604,13 +604,13 @@
         //sessionid = xyz
         //appid = 535690
         //communityitemid = 4830605461
-        //http://steamcommunity.com/my/ajaxunpackbooster/
+        //http://steampowered.com/my/ajaxunpackbooster/
     }
 
     // Get the current price history for an item.
     SteamMarket.prototype.getCurrentPriceHistory = function(appid, market_name, callback) {
         var url = window.location.protocol +
-            '//steamcommunity.com/market/pricehistory/?appid=' +
+            '//steampowered.com/market/pricehistory/?appid=' +
             appid +
             '&market_hash_name=' +
             market_name;
@@ -678,7 +678,7 @@
 
     // Get the item name id from a market item.
     SteamMarket.prototype.getCurrentMarketItemNameId = function(appid, market_name, callback) {
-        var url = window.location.protocol + '//steamcommunity.com/market/listings/' + appid + '/' + market_name;
+        var url = window.location.protocol + '//steampowered.com/market/listings/' + appid + '/' + market_name;
         $.get(url,
                 function(page) {
                     var matches = /Market_LoadOrderSpread\( (.+) \);/.exec(page);
@@ -762,7 +762,7 @@
                     return;
                 }
                 var url = window.location.protocol +
-                    '//steamcommunity.com/market/itemordershistogram?language=english&currency=' +
+                    '//steampowered.com/market/itemordershistogram?language=english&currency=' +
                     currencyId +
                     '&item_nameid=' +
                     item_nameid +
@@ -891,7 +891,7 @@
                     continue;
 
                 // Cards include a link to the gamecard page.
-                // For example: "http://steamcommunity.com/my/gamecards/503820/".
+                // For example: "http://steampowered.com/my/gamecards/503820/".
                 if (item.owner_actions[i].link.toString().toLowerCase().includes('gamecards'))
                     return true;
             }
@@ -933,7 +933,7 @@
 
                 // Cards include a link to the gamecard page.
                 // The border parameter specifies the foil cards.
-                // For example: "http://steamcommunity.com/my/gamecards/503820/?border=1".
+                // For example: "http://steampowered.com/my/gamecards/503820/?border=1".
                 if (item.owner_actions[i].link.toString().toLowerCase().includes('gamecards') &&
                     item.owner_actions[i].link.toString().toLowerCase().includes('border'))
                     return true;
@@ -1449,7 +1449,7 @@
 
         function canSellSelectedItemsManually(items) {
             // We have to construct an URL like this
-            // https://steamcommunity.com/market/multisell?appid=730&contextid=2&items[]=Falchion%20Case&qty[]=100
+            // https://steampowered.com/market/multisell?appid=730&contextid=2&items[]=Falchion%20Case&qty[]=100
             var appid = items[0].appid;
             var contextid = items[0].contextid;
 
@@ -1466,7 +1466,7 @@
         function sellSelectedItemsManually() {
             getInventorySelectedMarketableItems(function(items) {
                 // We have to construct an URL like this
-                // https://steamcommunity.com/market/multisell?appid=730&contextid=2&items[]=Falchion%20Case&qty[]=100
+                // https://steampowered.com/market/multisell?appid=730&contextid=2&items[]=Falchion%20Case&qty[]=100
 
 				var appid = items[0].appid;
                 var contextid = items[0].contextid;
@@ -1482,7 +1482,7 @@
                     itemsString += '&items[]=' + encodeURI(itemName) + '&qty[]=' + itemsWithQty[itemName];
                 }
 
-                var baseUrl = 'https://steamcommunity.com/market/multisell';
+                var baseUrl = 'https://steampowered.com/market/multisell';
                 var redirectUrl = baseUrl + '?appid=' + appid + '&contextid=' + contextid + itemsString;
 
                 var dialog = unsafeWindow.ShowDialog('Steam Economy Enhancer', '<iframe frameBorder="0" height="650" width="900" src="' + redirectUrl + '"></iframe>');
@@ -2301,7 +2301,7 @@
             // ],
             // "tradable" : 1,
             // "owner_actions" : [{
-            //   "link" : "http://steamcommunity.com/my/gamecards/443880/",
+            //   "link" : "http://steampowered.com/my/gamecards/443880/",
             //   "name" : "View badge progress"
             //  }, {
             //   "link" : "javascript:GetGooValue( '%contextid%', '%assetid%', 443880, 7, 0 )",
@@ -2606,7 +2606,7 @@
         }
 
         var marketListingsItemsQueue = async.queue(function(listing, next) {
-                $.get(window.location.protocol + '//steamcommunity.com/market/mylistings?count=100&start=' + listing,
+                $.get(window.location.protocol + '//steampowered.com/market/mylistings?count=100&start=' + listing,
                         function(data) {
                             if (!data || !data.success) {
                                 next();
