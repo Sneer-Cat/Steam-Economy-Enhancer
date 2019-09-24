@@ -5,6 +5,10 @@
 // @license     MIT
 // @version     6.8.0
 // @description 增强 Steam 库存和 Steam 市场功能
+// @include     *://steamcommunity.com/id/*/inventory*
+// @include     *://steamcommunity.com/profiles/*/inventory*
+// @include     *://steamcommunity.com/market*
+// @include     *://steamcommunity.com/tradeoffer*
 // @include     *://steampowered.com/id/*/inventory*
 // @include     *://steampowered.com/profiles/*/inventory*
 // @include     *://steampowered.com/market*
