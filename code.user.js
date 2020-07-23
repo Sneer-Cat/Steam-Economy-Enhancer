@@ -19,6 +19,7 @@
 // @require     https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.js
 // @require     https://github.com/rmariuzzo/checkboxes.js/releases/download/v1.2.2/jquery.checkboxes-1.2.2.min.js
 // @grant       unsafeWindow
+// @grant       GM_addStyle
 // @homepageURL https://steamcn.com/t311996-1-1
 // @supportURL  https://steamcn.com/t311996-1-1
 // @downloadURL https://raw.githubusercontent.com/Sneer-Cat/Steam-Economy-Enhancer/master/code.user.js
@@ -134,6 +135,8 @@
         SETTING_RELIST_AUTOMATICALLY: 0,
         SETTING_MARKET_PAGE_COUNT: 100
     };
+
+    GM_addStyle('.inventory_iteminfo .market_commodity_orders_table th {min-width: 69px; padding: 4px} .inventory_iteminfo .market_commodity_orders_table td {min-width: initial}');
 
     function getSettingWithDefault(name) {
         return getLocalStorageItem(name) || (name in settingDefaults ? settingDefaults[name] : null);
@@ -762,7 +765,7 @@
                     return;
                 }
                 var url = window.location.protocol +
-                    '//steamcommunity.com/market/itemordershistogram?language=english&currency=' +
+                    '//steamcommunity.com/market/itemordershistogram?language=schinese&currency=' +
                     currencyId +
                     '&item_nameid=' +
                     item_nameid +
