@@ -1,9 +1,10 @@
 // ==UserScript==
 // @name        Steam Economy Enhancer
+// @icon        https://upload.wikimedia.org/wikipedia/commons/8/83/Steam_icon_logo.svg
 // @namespace   https://github.com/Nuklon
 // @author      Nuklon
 // @license     MIT
-// @version     6.8.1
+// @version     6.8.2
 // @description 增强 Steam 库存和 Steam 市场功能
 // @include     *://steamcommunity.com/id/*/inventory*
 // @include     *://steamcommunity.com/profiles/*/inventory*
@@ -866,6 +867,27 @@
         return null;
     }
 
+    function getIsCrate(item) {
+        if (item == null)
+            return false;
+        // This is available on the inventory page.
+        var tags = item.tags != null ?
+            item.tags :
+            (item.description != null && item.description.tags != null ?
+                item.description.tags :
+                null);
+        if (tags != null) {
+            var isTaggedAsCrate = false;
+            tags.forEach(function (arrayItem) {
+                if (arrayItem.category == 'Type')
+                    if (arrayItem.internal_name == 'Supply Crate')
+                        isTaggedAsCrate = true;
+            });
+            if (isTaggedAsCrate)
+                return true;
+        }
+    }
+
     function getIsTradingCard(item) {
         if (item == null)
             return false;
@@ -1210,6 +1232,24 @@
                             return;
                         }
 
+                        filteredItems.push(item);
+                    });
+
+                    sellItems(filteredItems);
+                },
+                function() {
+                    logDOM('无法检索库存...');
+                });
+        }
+
+        function sellAllCrates() {
+            loadAllInventories().then(function () {
+                    var items = getInventoryItems();
+                    var filteredItems = [];
+                    items.forEach(function (item) {
+                        if (!getIsCrate(item) || !item.marketable) {
+                            return;
+                        }
                         filteredItems.push(item);
                     });
 
@@ -1997,6 +2037,7 @@
 
             var appId = getActiveInventory().m_appid;
             var showMiscOptions = appId == 753;
+            var TF2 = appId == 440;
 
             var sellButtons = $('<div id="inventory_sell_buttons" style="margin-bottom:12px;">' +
                 '<a class="btn_green_white_innerfade btn_medium_wide sell_all separator-btn-right"><span>出售所有物品</span></a>' +
@@ -2009,6 +2050,7 @@
                     '<a class="btn_darkblue_white_innerfade btn_medium_wide unpack_booster_packs separator-btn-right" style="display:none"><span>拆开选中的补充包</span></a>' +
                     '</div>' :
                     '') +
+                (TF2 ? '<a class="btn_green_white_innerfade btn_medium_wide sell_all_crates separator-btn-right"><span>出售所有箱子</span></a>' : '') +
                 '</div>');
 
             var reloadButton =
@@ -2041,6 +2083,7 @@
                 $('.sell_selected').on('click', '*', sellSelectedItems);
                 $('.sell_manual').on('click', '*', sellSelectedItemsManually);
                 $('.sell_all_cards').on('click', '*', sellAllCards);
+                $('.sell_all_crates').on('click', '*', sellAllCrates);
                 $('.turn_into_gems').on('click', '*', turnSelectedItemsIntoGems);
                 $('.unpack_booster_packs').on('click', '*', unpackSelectedBoosterPacks);
 
@@ -2263,7 +2306,7 @@
 
         marketListingsQueue.drain = function() {
             injectJs(function() {
-                unsafeWindow.g_bMarketWindowHidden = false;
+                g_bMarketWindowHidden = false;
             })
         };
 
