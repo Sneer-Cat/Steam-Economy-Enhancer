@@ -137,7 +137,7 @@
         SETTING_MARKET_PAGE_COUNT: 100
     };
 
-    GM_addStyle('.inventory_iteminfo .market_commodity_orders_table th {min-width: 69px; padding: 4px} .inventory_iteminfo .market_commodity_orders_table td {min-width: initial}');
+    GM_addStyle('.inventory_iteminfo .market_commodity_orders_table th {min-width: 69px; padding: 4px} .inventory_iteminfo .market_commodity_orders_table td {min-width: initial} @media screen and (max-width: 910px) {html.responsive .view_inventory_logo {max-height: unset !important;}}');
 
     function getSettingWithDefault(name) {
         return getLocalStorageItem(name) || (name in settingDefaults ? settingDefaults[name] : null);
