@@ -4,7 +4,7 @@
 // @namespace   https://github.com/Nuklon
 // @author      Nuklon
 // @license     MIT
-// @version     6.8.2
+// @version     6.8.3
 // @description 增强 Steam 库存和 Steam 市场功能
 // @include     *://steamcommunity.com/id/*/inventory*
 // @include     *://steamcommunity.com/profiles/*/inventory*
@@ -1956,7 +1956,10 @@
                     }
 
                     if (histogram != null && histogram.lowest_sell_order != null) {
-                        prices.push(parseInt(histogram.lowest_sell_order) - 1);
+                        // Transaction volume must be separable into three or more parts (no matter if equal): valve+publisher+seller.
+                        if (parseInt(histogram.lowest_sell_order) > 3) {
+                            prices.push(parseInt(histogram.lowest_sell_order) - 1);
+                        }
                         prices.push(parseInt(histogram.lowest_sell_order));
                     }
 
@@ -1964,11 +1967,11 @@
 
                     var buttons = '<div>';
                     var oributton = $('#' + item_info_id + '_item_market_actions > a.item_market_action_button', item_info);
-                    buttons += '<a class="item_market_action_button item_market_action_button_green" style="margin-right: 4px;" href="javascript:SellCurrentSelection()">'+oributton.html()+'</a>';
+                    buttons += '<a class="item_market_action_button item_market_action_button_green" style="margin-right: 4px; display: inline-block;" href="javascript:SellCurrentSelection()">'+oributton.html()+'</a>';
                     oributton.remove();
                     prices.forEach(function(e) {
                         buttons +=
-                            '<a class="item_market_action_button item_market_action_button_green quick_sell" id="quick_sell' +
+                            '<a class="item_market_action_button item_market_action_button_green quick_sell" style="display: inline-block;" id="quick_sell' +
                             e +
                             '">' +
                             '<span class="item_market_action_button_edge item_market_action_button_left"></span>' +
