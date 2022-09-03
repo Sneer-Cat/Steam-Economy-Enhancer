@@ -2805,7 +2805,7 @@
             market_listing_see.after('<ul class="paginationBottom pagination"></ul>');
 
             $('.market_listing_table_header', market_listing_see.parent())
-                .append('<input class="search" id="market_name_search" placeholder="Search..." />');
+                .append('<input class="search" id="market_name_search" placeholder="搜索..." />');
 
             var options = {
                 valueNames: [
