@@ -4,7 +4,7 @@
 // @namespace   https://github.com/Nuklon
 // @author      Nuklon
 // @license     MIT
-// @version     6.8.3
+// @version     6.8.6
 // @description 增强 Steam 库存和 Steam 市场功能
 // @include     *://steamcommunity.com/id/*/inventory*
 // @include     *://steamcommunity.com/profiles/*/inventory*
@@ -64,6 +64,7 @@
 
     var enableConsoleLog = false;
 
+    var country = typeof unsafeWindow.g_strCountryCode !== 'undefined' ? unsafeWindow.g_strCountryCode : undefined;
     var isLoggedIn = typeof unsafeWindow.g_rgWalletInfo !== 'undefined' && unsafeWindow.g_rgWalletInfo != null || (typeof unsafeWindow.g_bLoggedIn !== 'undefined' && unsafeWindow.g_bLoggedIn);
 
     var currentPage = window.location.href.includes('.com/market') ?
@@ -75,9 +76,11 @@
             PAGE_INVENTORY);
 
     var market = new SteamMarket(unsafeWindow.g_rgAppContextData,
-        typeof unsafeWindow.g_strInventoryLoadURL !== 'undefined' && unsafeWindow.g_strInventoryLoadURL != null ?
-        unsafeWindow.g_strInventoryLoadURL :
-        location.protocol + '//steamcommunity.com/my/inventory/json/',
+        typeof unsafeWindow.g_strInventoryLoadURL !== 'undefined' && unsafeWindow.g_strInventoryLoadURL != null
+           ? unsafeWindow.g_strInventoryLoadURL
+           : typeof unsafeWindow.g_strProfileURL !== 'undefined' && unsafeWindow.g_strProfileURL != null
+              ? unsafeWindow.g_strProfileURL + '/inventory/json/'
+              : 'https://steamcommunity.com/my/inventory/json/',
         isLoggedIn ? unsafeWindow.g_rgWalletInfo : undefined);
 
     var currencyId =
@@ -503,7 +506,7 @@
                     var item_data = action.link.split(',');
                     var appid = item_data[2].trim();
                     var item_type = item_data[3].trim();
-                    var border_color = item_data[4].trim();
+                    var border_color = item_data[4].split(' ')[0].trim();
                     $.ajax({
                         type: "GET",
                         url: window.location.protocol+'//steamcommunity.com/auction/ajaxgetgoovalueforitemtype/',
@@ -766,7 +769,9 @@
                     return;
                 }
                 var url = window.location.protocol +
-                    '//steamcommunity.com/market/itemordershistogram?language=schinese&currency=' +
+                    '//steamcommunity.com/market/itemordershistogram?country=' +
+                    country +
+                    '&language=schinese&currency=' +
                     currencyId +
                     '&item_nameid=' +
                     item_nameid +
@@ -1220,6 +1225,29 @@
                 function() {
                     logDOM('无法检索库存...');
                 });
+        }
+
+        function sellAllDuplicateItems() {
+            loadAllInventories().then(function () {
+                var items = getInventoryItems();
+                var marketableItems = [];
+                var filteredItems = [];
+
+                items.forEach(function (item) {
+                    if (!item.marketable) {
+                        return;
+                    }
+
+                    marketableItems.push(item);
+                });
+
+                filteredItems = marketableItems.filter((e, i) => marketableItems.map(m => m.classid).indexOf(e.classid) !== i);
+
+                sellItems(filteredItems);
+            },
+            function () {
+                logDOM('无法检索库存...');
+            });
         }
 
         function sellAllCards() {
@@ -2044,6 +2072,7 @@
 
             var sellButtons = $('<div id="inventory_sell_buttons" style="margin-bottom:12px;">' +
                 '<a class="btn_green_white_innerfade btn_medium_wide sell_all separator-btn-right"><span>出售所有物品</span></a>' +
+                '<a class="btn_green_white_innerfade btn_medium_wide sell_all_duplicates separator-btn-right"><span>出售所有重复物品</span></a>' +
                 '<a class="btn_green_white_innerfade btn_medium_wide sell_selected separator-btn-right" style="display:none"><span>出售所选物品</span></a>' +
                 '<a class="btn_green_white_innerfade btn_medium_wide sell_manual separator-btn-right" style="display:none"><span>手动出售物品</span></a>' +
                 (showMiscOptions ?
@@ -2084,6 +2113,7 @@
                         sellAllItems(appId);
                     });
                 $('.sell_selected').on('click', '*', sellSelectedItems);
+                $('.sell_all_duplicates').on('click', '*', sellAllDuplicateItems);
                 $('.sell_manual').on('click', '*', sellSelectedItemsManually);
                 $('.sell_all_cards').on('click', '*', sellAllCards);
                 $('.sell_all_crates').on('click', '*', sellAllCrates);
