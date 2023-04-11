@@ -4,7 +4,7 @@
 // @namespace   https://github.com/Nuklon
 // @author      Nuklon
 // @license     MIT
-// @version     6.8.6
+// @version     6.8.9
 // @description 增强 Steam 库存和 Steam 市场功能
 // @include     *://steamcommunity.com/id/*/inventory*
 // @include     *://steamcommunity.com/profiles/*/inventory*
@@ -1250,6 +1250,53 @@
             });
         }
 
+        function gemAllDuplicateItems() {
+            loadAllInventories().then(function () {
+                var items = getInventoryItems();
+                var filteredItems = [];
+                var numberOfQueuedItems = 0;
+
+                filteredItems = items.filter((e, i) => items.map(m => m.classid).indexOf(e.classid) !== i);
+
+                filteredItems.forEach(function (item) {
+                    if (item.queued != null) {
+                        return;
+                    }
+
+                    if (item.owner_actions == null) {
+                        return;
+                    }
+
+                    var canTurnIntoGems = false;
+                    for (var owner_action in item.owner_actions) {
+                        if (item.owner_actions[owner_action].link != null && item.owner_actions[owner_action].link.includes('GetGooValue')) {
+                            canTurnIntoGems = true;
+                        }
+                    }
+
+                    if (!canTurnIntoGems)
+                        return;
+
+                    item.queued = true;
+                    scrapQueue.push(item);
+                    numberOfQueuedItems++;
+                });
+
+                if (numberOfQueuedItems > 0) {
+                    totalNumberOfQueuedItems += numberOfQueuedItems;
+
+                    $('#inventory_items_spinner').remove();
+                    $('#inventory_sell_buttons').append('<div id="inventory_items_spinner">' +
+                        spinnerBlock +
+                        '<div style="text-align:center">正在处理处理 ' + numberOfQueuedItems + '个 物品</div>' +
+                        '</div>');
+                }
+            },
+            function () {
+                logDOM('无法检索库存...');
+            });
+        }
+
         function sellAllCards() {
             loadAllInventories().then(function() {
                     var items = getInventoryItems();
@@ -1327,7 +1374,7 @@
 
                     if (err != ERROR_SUCCESS) {
                         logConsole('无法获取 ' + itemName + ' 分解后的宝石数。');
-                        logDOM(padLeft + ' - ' + itemName + ' 由于缺少宝石数而未变成宝石');
+                        logDOM(padLeft + ' - ' + itemName + ' 由于缺少宝石数，而未分解为宝石');
 
                         $('#' + item.appid + '_' + item.contextid + '_' + itemId).css('background', COLOR_ERROR);
                         return callback(false);
@@ -1527,8 +1574,8 @@
             var hasInvalidItem = false;
 
             items.forEach(function(item) {
-				if (item.contextid != contextid || item.commodity == false)
-				    hasInvalidItem = true;
+                if (item.contextid != contextid || item.commodity == false)
+                    hasInvalidItem = true;
             });
 
             return !hasInvalidItem;
@@ -1539,7 +1586,7 @@
                 // We have to construct an URL like this
                 // https://steamcommunity.com/market/multisell?appid=730&contextid=2&items[]=Falchion%20Case&qty[]=100
 
-				var appid = items[0].appid;
+                var appid = items[0].appid;
                 var contextid = items[0].contextid;
 
                 var itemsWithQty = {};
@@ -1724,9 +1771,20 @@
                     }
                 },
                 selected: function(e, ui) {
-                    updateInventorySelection(ui.selected);
+                    updateButtons();
                 }
             });
+
+            if (typeof unsafeWindow.CInventory !== 'undefined') {
+                var originalSelectItem = unsafeWindow.CInventory.prototype.SelectItem;
+
+                unsafeWindow.CInventory.prototype.SelectItem = function(event, elItem, rgItem, bUserAction) {
+                    originalSelectItem.apply(this, arguments);
+
+                    updateButtons();
+                    updateInventorySelection(rgItem);
+                }
+            }
         }
 
         // Gets the selected items in the inventory.
@@ -1736,10 +1794,7 @@
                 $(this).find('.inventory_page').each(function() {
                     var inventory_page = this;
 
-                    $(inventory_page).find('.itemHolder').each(function() {
-                        if (!$(this).hasClass('ui-selected'))
-                            return;
-
+                    $(inventory_page).find('.itemHolder.ui-selected:not([style*=none])').each(function() {
                         $(this).find('.item').each(function() {
                             var matches = this.id.match(/_(\-?\d+)$/);
                             if (matches) {
@@ -1888,28 +1943,18 @@
             });
         }
 
-        function updateInventorySelection(item) {
+        function updateButtons() {
             updateSellSelectedButton();
             updateTurnIntoGemsButton();
             updateOpenBoosterPacksButton();
+        }
 
-            // Wait until g_ActiveInventory.selectedItem is identical to the selected UI item.
-            // This also makes sure that the new - and correct - item_info (iteminfo0 or iteminfo1) is visible.
-            var selectedItemIdUI = $('div', item).attr('id');
-            var selectedItemIdInventory = getActiveInventory().selectedItem.appid +
-                '_' +
-                getActiveInventory().selectedItem.contextid +
-                '_' +
-                getActiveInventory().selectedItem.assetid;
-            if (selectedItemIdUI !== selectedItemIdInventory) {
-                setTimeout(function() {
-                    updateInventorySelection(item);
-                }, 250);
+        function updateInventorySelection(selectedItem) {
+            var item_info = $('#iteminfo' + unsafeWindow.iActiveSelectView);
 
+            if (!item_info.length)
                 return;
-            }
 
-            var item_info = $('.inventory_iteminfo:visible').first();
             if (item_info.html().indexOf('checkout/sendgift/') > -1) // Gifts have no market information.
                 return;
 
@@ -1924,11 +1969,11 @@
             //$('#' + item_info_id + '_item_market_actions > div:nth-child(1) > div:nth-child(2)')
             //    .remove(); // Starting at: x,xx.
 
-            var market_hash_name = getMarketHashName(getActiveInventory().selectedItem);
+            var market_hash_name = getMarketHashName(selectedItem);
             if (market_hash_name == null)
                 return;
 
-            var appid = getActiveInventory().selectedItem.appid;
+            var appid = selectedItem.appid;
             var item = {
                 appid: parseInt(appid),
                 description: {
@@ -1940,7 +1985,7 @@
                 false,
                 function(err, histogram) {
                     if (err) {
-                        logConsole('无法获取 ' + (getActiveInventory().selectedItem.name || getActiveInventory().selectedItem.description.name) + ' 的订单直方图');
+                        logConsole('无法获取 ' + (selectedItem.name || selectedItem.description.name) + ' 的订单直方图');
                         return;
                     }
 
@@ -1962,21 +2007,18 @@
                     ownerActions.append('<a class="btn_small btn_grey_white_innerfade" href="/market/listings/' + appid + '/' + market_hash_name + '"><span>在社区市场中查看</span></a>');
                     $('#' + item_info_id + '_item_market_actions > div:nth-child(1) > div:nth-child(1)').hide();
 
-                    var isBoosterPack = getActiveInventory().selectedItem.name.toLowerCase().endsWith('booster pack');
+                    var isBoosterPack = selectedItem.name.toLowerCase().endsWith('booster pack');
                     if (isBoosterPack) {
-                        var tradingCardsUrl = "/market/search?q=&category_753_Game%5B%5D=tag_app_" + getActiveInventory().selectedItem.market_fee_app + "&category_753_item_class%5B%5D=tag_item_class_2&appid=753";
+                        var tradingCardsUrl = "/market/search?q=&category_753_Game%5B%5D=tag_app_" + selectedItem.market_fee_app + "&category_753_item_class%5B%5D=tag_item_class_2&appid=753";
                         ownerActions.append('<br/> <a class="btn_small btn_grey_white_innerfade" href="' + tradingCardsUrl + '"><span>在社区市场中查看可集换式卡牌</span></a>');
                     }
 
-
-                    // Generate quick sell buttons.
-                    var itemId = getActiveInventory().selectedItem.assetid || getActiveInventory().selectedItem.id;
-
                     // Ignored queued items.
-                    if (getActiveInventory().selectedItem.queued != null) {
+                    if (selectedItem.queued != null) {
                         return;
                     }
 
+                    // Generate quick sell buttons.
                     var prices = [];
 
                     if (histogram != null && histogram.highest_buy_order != null) {
@@ -2034,7 +2076,7 @@
                             totalNumberOfQueuedItems++;
 
                             sellQueue.push({
-                                item: getActiveInventory().selectedItem,
+                                item: selectedItem,
                                 sellPrice: price
                             });
                         });
@@ -2047,7 +2089,7 @@
                             totalNumberOfQueuedItems++;
 
                             sellQueue.push({
-                                item: getActiveInventory().selectedItem,
+                                item: selectedItem,
                                 sellPrice: price
                             });
                         });
@@ -2079,6 +2121,7 @@
                     '<a class="btn_green_white_innerfade btn_medium_wide sell_all_cards separator-btn-right"><span>出售所有卡牌</span></a>' +
                     '<div style="margin-top:12px;">' +
                     '<a class="btn_darkblue_white_innerfade btn_medium_wide turn_into_gems separator-btn-right" style="display:none"><span>将选中物品分解为宝石</span></a>' +
+                    '<a class="btn_darkblue_white_innerfade btn_medium_wide gem_all_duplicates separator-btn-right"><span>将所有重复物品分解为宝石</span></a>' +
                     '<a class="btn_darkblue_white_innerfade btn_medium_wide unpack_booster_packs separator-btn-right" style="display:none"><span>拆开选中的补充包</span></a>' +
                     '</div>' :
                     '') +
@@ -2114,6 +2157,7 @@
                     });
                 $('.sell_selected').on('click', '*', sellSelectedItems);
                 $('.sell_all_duplicates').on('click', '*', sellAllDuplicateItems);
+                $('.gem_all_duplicates').on('click', '*', gemAllDuplicateItems);
                 $('.sell_manual').on('click', '*', sellSelectedItemsManually);
                 $('.sell_all_cards').on('click', '*', sellAllCards);
                 $('.sell_all_crates').on('click', '*', sellAllCrates);
