@@ -21,8 +21,8 @@
 // @require     https://unpkg.com/checkboxes.js@1.2.2/dist/jquery.checkboxes-1.2.2.min.js
 // @grant       unsafeWindow
 // @grant       GM_addStyle
-// @homepageURL https://steamcn.com/t311996-1-1
-// @supportURL  https://steamcn.com/t311996-1-1
+// @homepageURL https://keylol.com/t311996-1-1
+// @supportURL  https://keylol.com/t311996-1-1
 // @downloadURL https://raw.githubusercontent.com/Sneer-Cat/Steam-Economy-Enhancer/master/code.user.js
 // @updateURL   https://raw.githubusercontent.com/Sneer-Cat/Steam-Economy-Enhancer/master/code.user.js
 // ==/UserScript==
