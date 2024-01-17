@@ -4,7 +4,7 @@
 // @namespace   https://github.com/Nuklon
 // @author      Nuklon
 // @license     MIT
-// @version     6.9.0
+// @version     6.9.2
 // @description 增强 Steam 库存和 Steam 市场功能
 // @include     *://steamcommunity.com/id/*/inventory*
 // @include     *://steamcommunity.com/profiles/*/inventory*
@@ -12,13 +12,13 @@
 // @include     *://steamcommunity.com/tradeoffer*
 // @require     https://code.jquery.com/jquery-3.3.1.min.js
 // @require     https://code.jquery.com/ui/1.12.1/jquery-ui.min.js
-// @require     https://unpkg.com/@kapetan/jquery-observe@3.0.0/jquery-observe.js
-// @require     https://unpkg.com/paginationjs@2.1.2/dist/pagination.min.js
-// @require     https://unpkg.com/async@2.6.0/dist/async.min.js
-// @require     https://unpkg.com/localforage@1.7.1/dist/localforage.min.js
-// @require     https://unpkg.com/luxon@2.4.0/build/global/luxon.min.js
-// @require     https://unpkg.com/list.js@1.5.0/dist/list.min.js
-// @require     https://unpkg.com/checkboxes.js@1.2.2/dist/jquery.checkboxes-1.2.2.min.js
+// @require     https://raw.githubusercontent.com/kapetan/jquery-observe/ca67b735bb3ae8d678d1843384ebbe7c02466c61/jquery-observe.js
+// @require     https://cdnjs.cloudflare.com/ajax/libs/paginationjs/2.1.2/pagination.min.js
+// @require     https://cdnjs.cloudflare.com/ajax/libs/async/2.6.0/async.js
+// @require     https://cdnjs.cloudflare.com/ajax/libs/localforage/1.7.1/localforage.min.js
+// @require     https://moment.github.io/luxon/global/luxon.min.js
+// @require     https://cdnjs.cloudflare.com/ajax/libs/list.js/1.5.0/list.js
+// @require     https://raw.githubusercontent.com/rmariuzzo/checkboxes.js/91bec667e9172ceb063df1ecb7505e8ed0bae9ba/src/jquery.checkboxes.js
 // @grant       unsafeWindow
 // @grant       GM_addStyle
 // @homepageURL https://keylol.com/t311996-1-1
@@ -541,6 +541,7 @@
         //contextid = 6
     }
 
+
     // Grinds the item into gems.
     SteamMarket.prototype.grindIntoGoo = function(item, callback) {
         try {
@@ -688,7 +689,7 @@
         var url = window.location.protocol + '//steamcommunity.com/market/listings/' + appid + '/' + market_name;
         $.get(url,
                 function(page) {
-                    var matches = /Market_LoadOrderSpread\( (.+) \);/.exec(page);
+                    var matches = /Market_LoadOrderSpread\( (\d+) \);/.exec(page);
                     if (matches == null) {
                         callback(ERROR_DATA);
                         return;
@@ -3151,10 +3152,22 @@
             // Sell orders.
             $('.my_market_header').first().append(
                 '<div class="market_listing_buttons">' +
+
                 '<a class="item_market_action_button item_market_action_button_green select_all market_listing_button">' +
                 '<span class="item_market_action_button_contents" style="text-transform:none">选中全部物品</span>' +
                 '</a>' +
                 '<span class="separator-small"></span>' +
+
+                '<a class="item_market_action_button item_market_action_button_green select_five_from_page market_listing_button">' +
+                '<span class="item_market_action_button_contents" style="text-transform:none">选择 5 个</span>' +
+                '</a>' +
+                '<span class="separator-small"></span>' +
+
+                '<a class="item_market_action_button item_market_action_button_green select_twentyfive_from_page market_listing_button">' +
+                '<span class="item_market_action_button_contents" style="text-transform:none">选择 25 个</span>' +
+                '</a>' +
+                '<span class="separator-small"></span>' +
+
                 '<a class="item_market_action_button item_market_action_button_green remove_selected market_listing_button">' +
                 '<span class="item_market_action_button_contents" style="text-transform:none">下架选中物品</span>' +
                 '</a>' +
@@ -3162,13 +3175,16 @@
                 '<span class="item_market_action_button_contents" style="text-transform:none">重新上架选中物品</span>' +
                 '</a>' +
                 '<span class="separator-small"></span>' +
+
                 '<a class="item_market_action_button item_market_action_button_green relist_overpriced market_listing_button market_listing_button_right">' +
                 '<span class="item_market_action_button_contents" style="text-transform:none">重新上架高价物品</span>' +
                 '</a>' +
                 '<span class="separator-small"></span>' +
+
                 '<a class="item_market_action_button item_market_action_button_green select_overpriced market_listing_button market_listing_button_right">' +
                 '<span class="item_market_action_button_contents" style="text-transform:none">选中高价物品</span>' +
                 '</a>' +
+
                 '</div>');
 
             // Listings confirmations and buy orders.
@@ -3207,6 +3223,45 @@
                 updateMarketSelectAllButton();
             });
 
+            $('.select_five_from_page').on('click', '*', function() {
+                var selectionGroup = $(this).parent().parent().parent().parent();
+                var marketList = getListFromContainer(selectionGroup);
+
+                var invert = $('.market_select_item:checked', selectionGroup).length == $('.market_select_item', selectionGroup).length;
+
+                var count = 0
+                for (var i = 0; i < marketList.matchingItems.length; i++) {
+                    if(count == 5){
+                        break;
+                    }
+                    if(!$('.market_select_item', marketList.matchingItems[i].elm).prop('checked')){
+                        $('.market_select_item', marketList.matchingItems[i].elm).prop('checked', true);
+                        count += 1;
+                    }
+                }
+
+                updateMarketSelectAllButton();
+            });
+
+            $('.select_twentyfive_from_page').on('click', '*', function() {
+                var selectionGroup = $(this).parent().parent().parent().parent();
+                var marketList = getListFromContainer(selectionGroup);
+
+                var invert = $('.market_select_item:checked', selectionGroup).length == $('.market_select_item', selectionGroup).length;
+
+                var count = 0
+                for (var i = 0; i < marketList.matchingItems.length; i++) {
+                    if(count == 25){
+                        break;
+                    }
+                    if(!$('.market_select_item', marketList.matchingItems[i].elm).prop('checked')){
+                        $('.market_select_item', marketList.matchingItems[i].elm).prop('checked', true);
+                        count += 1;
+                    }
+                }
+
+                updateMarketSelectAllButton();
+            });
 
             $('#market_removelisting_dialog_accept').on('click', '*', function() {
                 // This is when a user removed an item through the Remove/Cancel button.
@@ -3367,11 +3422,13 @@
                 return a[1] - b[1];
             }).reverse();
 
-            var totalText = '<strong>物品数量：' + sortable.length + '，价值 ' + (totalPrice / 100).toFixed(2) + currencySymbol + '<br/><br/></strong>';
-
+            var totalText = '<strong>物品种类数：' + sortable.length + '，价值 ' + (totalPrice / 100).toFixed(2) + currencySymbol + '<br/><br/></strong>';
+            var totalNumOfItems = 0;
             for (var i = 0; i < sortable.length; i++) {
                 totalText += sortable[i][1] + 'x ' + sortable[i][0] + '<br/>';
+                totalNumOfItems += sortable[i][1];
             }
+            totalText += '<br/><strong>物品总数: ' + totalNumOfItems + '</strong><br/>';
 
             return totalText;
         }
