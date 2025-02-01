@@ -1293,7 +1293,7 @@
         const sellQueue = async.queue(
             (task, next) => {
                 totalNumberOfProcessedQueueItems++;
-
+                
                 const digits = getNumberOfDigits(totalNumberOfQueuedItems);
                 const itemId = task.item.assetid || task.item.id;
                 const itemName = task.item.name || task.item.description.name;
@@ -1306,7 +1306,7 @@
                     next();
                     return;
                 }
-
+                
                 market.sellItem(
                     task.item,
                     task.sellPrice,
@@ -3106,6 +3106,7 @@
                 appid,
                 contextid,
                 assetid,
+                amount,
                 priceBuyer,
                 priceSeller
             };
@@ -3449,7 +3450,7 @@
                 <a class="item_market_action_button item_market_action_button_green remove_selected market_listing_button">
                     <span class="item_market_action_button_contents">删除选中物品</span>
                 </a>
-                </div>`);
+            </div>`);
 
             $('.market_listing_table_header').on('click', 'span', function() {
                 if ($(this).hasClass('market_listing_edit_buttons') || $(this).hasClass('item_market_action_button_contents')) {
