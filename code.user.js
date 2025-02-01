@@ -1317,7 +1317,7 @@
                         const callback = () => setTimeout(() => next(), getRandomInt(1000, 1500));
 
                         if (success) {
-                            logDOM(`${padLeft} - ${itemNameWithAmount} 已添加至市场，售价为 ${formatPrice(market.getPriceIncludingFees(task.sellPrice)) * task.item.amount}，你将收到 ${formatPrice(task.sellPrice) * task.item.amount}。`);
+                            logDOM(`${padLeft} - ${itemNameWithAmount} 已添加至市场，售价为 ${formatPrice(market.getPriceIncludingFees(task.sellPrice) * task.item.amount)}，你将收到 ${formatPrice(task.sellPrice * task.item.amount)}。`);
                             $(`#${task.item.appid}_${task.item.contextid}_${itemId}`).css('background', COLOR_SUCCESS);
 
                             totalPriceWithoutFeesOnMarket += task.sellPrice * task.item.amount;
