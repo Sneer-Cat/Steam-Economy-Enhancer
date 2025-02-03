@@ -1,13 +1,14 @@
-# Steam Economy Enhancer
+# <img src="https://github.com/Nuklon/Steam-Economy-Enhancer/raw/refs/heads/master/assets/icon.svg" width="32" align="center"> Steam Economy Enhancer
 
 A free userscript to enhance your Steam Inventory, Steam Market and Steam Tradeoffers.
 
 It adds the following features to the Steam Market:
 
 *    Detect overpriced and underpriced items.
-*    Select all (overpriced) items and remove them at once.
+*    Select 5/25/all (overpriced) items and remove them at once.
 *    (Automatically) relist overpriced items.
 *    Sort and search items by name, price or date.
+*    Total price for listings, as seller and buyer.
 
 It adds the following features to the Steam Inventory:
 
@@ -17,44 +18,49 @@ It adds the following features to the Steam Inventory:
 *    Quick sell buttons to sell an item without confirmations.
 *    Shows the lowest listed price for each item.
 *    Turn selected items into gems.
+*    Unpack selected booster packs.
 
 It adds the following features to the Steam Tradeoffers:
 
-*    A summary of all items from both parties.
+*    A summary of all items from both parties that includes total number of items, number of unique items and item count breakdown (how many of each item there are)
 *    Select all items of the current page.
 *    Shows the lowest listed price for each inventory item.
 
 The pricing can be based on the lowest listed price, the price history and your own minimum and maximum prices.
 This can be defined in Steam Economy Enhancer's settings, which you can find at the top of the page near the *Install Steam* button.
 
-**Download**
+> [!NOTE]  
+> It is free but there is **NO** support. If you want to add functionality, feel free to submit a PR.
+
+### Download
 
 [Install Steam Economy Enhancer](https://raw.githubusercontent.com/Nuklon/Steam-Economy-Enhancer/master/code.user.js)
 
-*Greasemonkey or Tampermonkey is required to install.*
+*[Violentmonkey](https://violentmonkey.github.io/) is required to install.*
 
-**Screenshots**
+### Screenshots
 
 
 *Market*
 
-![Market](http://i.imgur.com/cQx5J9e.png)
+![Market](https://github.com/Nuklon/Steam-Economy-Enhancer/raw/refs/heads/master/assets/market.png)
 
 
 *Inventory*
 
-![Inventory](http://i.imgur.com/9BuLN78.png)
+![Inventory](https://github.com/Nuklon/Steam-Economy-Enhancer/raw/refs/heads/master/assets/inventory.png)
 
 
 *Options*
 
-![Options](http://i.imgur.com/eShpvEO.png)
+![Options](https://github.com/Nuklon/Steam-Economy-Enhancer/raw/refs/heads/master/assets/settings.png)
 
 
 *Trade offers*
 
-![Tradeoffers](http://i.imgur.com/vdVeXHi.png)
+![Tradeoffers](https://github.com/Nuklon/Steam-Economy-Enhancer/raw/refs/heads/master/assets/tradeoffer.png)
 
-**License**
 
-MIT
+### License
+
+[MIT](LICENSE)

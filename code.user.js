@@ -2161,7 +2161,7 @@
             const ownerActions = $(`#${item_info_id}_item_owner_actions`);
 
             // Move market link to a button
-            ownerActions.append(`<a class="btn_small btn_grey_white_innerfade" href="/market/listings/${appid}/${market_hash_name}"><span>在社区市场中查看</span></a>`);
+            ownerActions.append(`<a class="btn_small btn_grey_white_innerfade" href="/market/listings/${appid}/${encodeURIComponent(market_hash_name)}"><span>在社区市场中查看</span></a>`);
             $(`#${item_info_id}_item_market_actions > div:nth-child(1) > div:nth-child(1)`).hide();
 
             // ownerActions is hidden on other games' inventories, we need to show it to have a "Market" button visible
@@ -3817,7 +3817,7 @@
                 <input type="number" step="0.01" id="${SETTING_PRICE_MIN_CHECK_PRICE}" value=${getSettingWithDefault(SETTING_PRICE_MIN_CHECK_PRICE)}>
             </div>
             <div style="margin-top:6px;">
-                不上架低于市场价多少的价格：
+                不上架低于指定的价格的物品（固定价格）：
                 <input type="number" step="0.01" id="${SETTING_PRICE_MIN_LIST_PRICE}" value=${getSettingWithDefault(SETTING_PRICE_MIN_LIST_PRICE)}>
             </div>
             <div style="margin-top:24px">
