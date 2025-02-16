@@ -4,7 +4,7 @@
 // @namespace    https://github.com/Nuklon
 // @author       Nuklon
 // @license      MIT
-// @version      7.1.2
+// @version      7.1.1
 // @description  增强 Steam 库存和 Steam 市场功能
 // @match        *://steamcommunity.com/id/*/inventory*
 // @match        *://steamcommunity.com/profiles/*/inventory*
@@ -197,7 +197,6 @@
     const SETTING_MAX_MISC_PRICE = 'SETTING_MAX_MISC_PRICE';
     const SETTING_PRICE_OFFSET = 'SETTING_PRICE_OFFSET';
     const SETTING_PRICE_MIN_CHECK_PRICE = 'SETTING_PRICE_MIN_CHECK_PRICE';
-    const SETTING_PRICE_MIN_LIST_PRICE = 'SETTING_PRICE_MIN_LIST_PRICE';
     const SETTING_PRICE_ALGORITHM = 'SETTING_PRICE_ALGORITHM';
     const SETTING_PRICE_IGNORE_LOWEST_Q = 'SETTING_PRICE_IGNORE_LOWEST_Q';
     const SETTING_PRICE_HISTORY_HOURS = 'SETTING_PRICE_HISTORY_HOURS';
@@ -217,7 +216,6 @@
         SETTING_MAX_MISC_PRICE: 10,
         SETTING_PRICE_OFFSET: 0.00,
         SETTING_PRICE_MIN_CHECK_PRICE: 0.00,
-        SETTING_PRICE_MIN_LIST_PRICE: 0.03,
         SETTING_PRICE_ALGORITHM: 1,
         SETTING_PRICE_IGNORE_LOWEST_Q: 1,
         SETTING_PRICE_HISTORY_HOURS: 12,
@@ -511,7 +509,7 @@
                 appid: item.appid,
                 contextid: item.contextid,
                 assetid: item.assetid || item.id,
-                amount: item.amount,
+                amount: 1,
                 price: price
             },
             responseType: 'json'
@@ -1292,36 +1290,28 @@
 
         const sellQueue = async.queue(
             (task, next) => {
-                totalNumberOfProcessedQueueItems++;
-                
-                const digits = getNumberOfDigits(totalNumberOfQueuedItems);
-                const itemId = task.item.assetid || task.item.id;
-                const itemName = task.item.name || task.item.description.name;
-                const itemNameWithAmount = task.item.amount == 1 ? itemName : `${task.item.amount}x ${itemName}`;
-                const padLeft = `${padLeftZero(`${totalNumberOfProcessedQueueItems}`, digits)} / ${totalNumberOfQueuedItems}`;
-
-                if (getSettingWithDefault(SETTING_PRICE_MIN_LIST_PRICE) * 100 >= market.getPriceIncludingFees(task.sellPrice)) {
-                    logDOM(`${padLeft} - ${itemNameWithAmount} 并未上架，因为价格忽略设置。`);
-                    $(`#${task.item.appid}_${task.item.contextid}_${itemId}`).css('background', COLOR_PRICE_NOT_CHECKED);
-                    next();
-                    return;
-                }
-                
                 market.sellItem(
                     task.item,
                     task.sellPrice,
                     (error, data) => {
+                        totalNumberOfProcessedQueueItems++;
+
+                        const digits = getNumberOfDigits(totalNumberOfQueuedItems);
+                        const itemId = task.item.assetid || task.item.id;
+                        const itemName = task.item.name || task.item.description.name;
+                        const padLeft = `${padLeftZero(`${totalNumberOfProcessedQueueItems}`, digits)} / ${totalNumberOfQueuedItems}`;
+
                         const success = Boolean(data?.success);
                         const message = data?.message || '';
 
                         const callback = () => setTimeout(() => next(), getRandomInt(1000, 1500));
 
                         if (success) {
-                            logDOM(`${padLeft} - ${itemNameWithAmount} 已添加至市场，售价为 ${formatPrice(market.getPriceIncludingFees(task.sellPrice) * task.item.amount)}，你将收到 ${formatPrice(task.sellPrice * task.item.amount)}。`);
+                            logDOM(`${padLeft} - ${itemName} 已添加至市场，售价为 ${formatPrice(market.getPriceIncludingFees(task.sellPrice))}，你将收到 ${formatPrice(task.sellPrice)}。`);
                             $(`#${task.item.appid}_${task.item.contextid}_${itemId}`).css('background', COLOR_SUCCESS);
 
-                            totalPriceWithoutFeesOnMarket += task.sellPrice * task.item.amount;
-                            totalPriceWithFeesOnMarket += market.getPriceIncludingFees(task.sellPrice) * task.item.amount;
+                            totalPriceWithoutFeesOnMarket += task.sellPrice;
+                            totalPriceWithFeesOnMarket += market.getPriceIncludingFees(task.sellPrice);
 
                             updateTotals();
                             callback()
@@ -1330,7 +1320,7 @@
                         }
 
                         if (message && isRetryMessage(message)) {
-                            logDOM(`${padLeft} - ${itemNameWithAmount} 正在重试列出物品，原因为 ${message.charAt(0).toLowerCase()}${message.slice(1)}`);
+                            logDOM(`${padLeft} - ${itemName} 正在重试列出物品，原因为 ${message.charAt(0).toLowerCase()}${message.slice(1)}`);
 
                             totalNumberOfProcessedQueueItems--;
                             sellQueue.unshift(task);
@@ -1342,7 +1332,7 @@
                             return;
                         }
 
-                        logDOM(`${padLeft} - ${itemNameWithAmount} 上架市场失败${message ? `，原因为 ${message.charAt(0).toLowerCase()}${message.slice(1)}` : '。'}`);
+                        logDOM(`${padLeft} - ${itemName} 上架市场失败${message ? `，原因为 ${message.charAt(0).toLowerCase()}${message.slice(1)}` : '。'}`);
                         $(`#${task.item.appid}_${task.item.contextid}_${itemId}`).css('background', COLOR_ERROR);
 
                         callback();
@@ -2161,7 +2151,7 @@
             const ownerActions = $(`#${item_info_id}_item_owner_actions`);
 
             // Move market link to a button
-            ownerActions.append(`<a class="btn_small btn_grey_white_innerfade" href="/market/listings/${appid}/${encodeURIComponent(market_hash_name)}"><span>在社区市场中查看</span></a>`);
+            ownerActions.append(`<a class="btn_small btn_grey_white_innerfade" href="/market/listings/${appid}/${market_hash_name}"><span>在社区市场中查看</span></a>`);
             $(`#${item_info_id}_item_market_actions > div:nth-child(1) > div:nth-child(1)`).hide();
 
             // ownerActions is hidden on other games' inventories, we need to show it to have a "Market" button visible
@@ -3052,19 +3042,17 @@
 
             let totalPriceBuyer = 0;
             let totalPriceSeller = 0;
-            let totalAmount = 0;
             // Add the listings to the queue to be checked for the price.
             for (let i = 0; i < marketLists.length; i++) {
                 for (let j = 0; j < marketLists[i].items.length; j++) {
                     const listingid = replaceNonNumbers(marketLists[i].items[j].values().market_listing_item_name);
                     const assetInfo = getAssetInfoFromListingId(listingid);
 
-                    totalAmount += assetInfo.amount
                     if (!isNaN(assetInfo.priceBuyer)) {
-                        totalPriceBuyer += assetInfo.priceBuyer * assetInfo.amount;
+                        totalPriceBuyer += assetInfo.priceBuyer;
                     }
                     if (!isNaN(assetInfo.priceSeller)) {
-                        totalPriceSeller += assetInfo.priceSeller * assetInfo.amount;
+                        totalPriceSeller += assetInfo.priceSeller;
                     }
 
                     marketListingsQueue.push({
@@ -3077,8 +3065,7 @@
                 }
             }
 
-            $('#my_market_selllistings_number').append(`<span id="my_market_sellistings_total_amount"> [${totalAmount}]</span>`)
-                                               .append(`<span id="my_market_sellistings_total_price">, ${formatPrice(totalPriceBuyer)} ➤ ${formatPrice(totalPriceSeller)}</span>`);
+            $('#my_market_selllistings_number').append(`<span id="my_market_sellistings_total_price">, ${formatPrice(totalPriceBuyer)} ➤ ${formatPrice(totalPriceSeller)}</span>`);
         }
 
 
@@ -3101,12 +3088,10 @@
             const appid = replaceNonNumbers(itemIds[2]);
             const contextid = replaceNonNumbers(itemIds[3]);
             const assetid = replaceNonNumbers(itemIds[4]);
-            const amount = Number(unsafeWindow.g_rgAssets[appid][contextid][assetid].amount);
             return {
                 appid,
                 contextid,
                 assetid,
-                amount,
                 priceBuyer,
                 priceSeller
             };
@@ -3450,7 +3435,7 @@
                 <a class="item_market_action_button item_market_action_button_green remove_selected market_listing_button">
                     <span class="item_market_action_button_contents">删除选中物品</span>
                 </a>
-            </div>`);
+                </div>`);
 
             $('.market_listing_table_header').on('click', 'span', function() {
                 if ($(this).hasClass('market_listing_edit_buttons') || $(this).hasClass('item_market_action_button_contents')) {
@@ -3816,10 +3801,6 @@
                 不检查指定价格及以下的市场列表：
                 <input type="number" step="0.01" id="${SETTING_PRICE_MIN_CHECK_PRICE}" value=${getSettingWithDefault(SETTING_PRICE_MIN_CHECK_PRICE)}>
             </div>
-            <div style="margin-top:6px;">
-                不上架低于指定的价格的物品（固定价格）：
-                <input type="number" step="0.01" id="${SETTING_PRICE_MIN_LIST_PRICE}" value=${getSettingWithDefault(SETTING_PRICE_MIN_LIST_PRICE)}>
-            </div>
             <div style="margin-top:24px">
                 在库存中显示价格标签：
                 <input type="checkbox" id="${SETTING_INVENTORY_PRICE_LABELS}" ${getSettingWithDefault(SETTING_INVENTORY_PRICE_LABELS) == 1 ? 'checked' : ''}>
@@ -3872,7 +3853,6 @@
             setSetting(SETTING_MAX_MISC_PRICE, $(`#${SETTING_MAX_MISC_PRICE}`, price_options).val());
             setSetting(SETTING_PRICE_OFFSET, $(`#${SETTING_PRICE_OFFSET}`, price_options).val());
             setSetting(SETTING_PRICE_MIN_CHECK_PRICE, $(`#${SETTING_PRICE_MIN_CHECK_PRICE}`, price_options).val());
-            setSetting(SETTING_PRICE_MIN_LIST_PRICE, $(`#${SETTING_PRICE_MIN_LIST_PRICE}`, price_options).val())
             setSetting(SETTING_PRICE_ALGORITHM, $(`#${SETTING_PRICE_ALGORITHM}`, price_options).val());
             setSetting(SETTING_PRICE_IGNORE_LOWEST_Q, $(`#${SETTING_PRICE_IGNORE_LOWEST_Q}`, price_options).prop('checked') ? 1 : 0);
             setSetting(SETTING_PRICE_HISTORY_HOURS, $(`#${SETTING_PRICE_HISTORY_HOURS}`, price_options).val());
