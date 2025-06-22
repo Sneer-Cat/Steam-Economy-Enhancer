@@ -4,7 +4,7 @@
 // @namespace    https://github.com/Nuklon
 // @author       Nuklon
 // @license      MIT
-// @version      7.1.12
+// @version      7.1.17
 // @description  增强 Steam 库存和 Steam 市场功能
 // @match        *://steamcommunity.com/id/*/inventory*
 // @match        *://steamcommunity.com/profiles/*/inventory*
@@ -58,8 +58,6 @@
     let totalPriceWithoutFeesOnMarket = 0;
     let totalScrap = 0;
 
-    const spinnerBlock =
-        '<div class="spinner"><div class="rect1"></div>&nbsp;<div class="rect2"></div>&nbsp;<div class="rect3"></div>&nbsp;<div class="rect4"></div>&nbsp;<div class="rect5"></div>&nbsp;</div>';
     let numberOfFailedRequests = 0;
 
     const enableConsoleLog = false;
@@ -109,61 +107,108 @@
         }
     }
 
+    request.queue = [];
+    request.errors = 0;
+    request.pending = false;
+    request.stopped = false;
+
     function request(url, options, callback) {
-        let delayBetweenRequests = 300;
-        let requestStorageHash = 'see:request:last';
+        callback = callback || function () {};
 
-        if (url.startsWith('https://steamcommunity.com/market/')) {
-            requestStorageHash = `${requestStorageHash}:steamcommunity.com/market`;
-            delayBetweenRequests = 1000;
-        }
+        // If the request was stopped, we don't want to send it to the server and continue other requests.
+        if (request.stopped) {
+            const error = new Error('Request was not sent to the server, something went wrong');
 
-        const lastRequest = JSON.parse(getLocalStorageItem(requestStorageHash) || JSON.stringify({ time: new Date(0), limited: false }));
-        const timeSinceLastRequest = Date.now() - new Date(lastRequest.time).getTime();
+            setTimeout(() => request.queue.shift()?.(), 1);
+            setTimeout(() => callback(error, null), 0);
 
-        delayBetweenRequests = lastRequest.limited ? 2.5 * 60 * 1000 : delayBetweenRequests;
-
-        if (timeSinceLastRequest < delayBetweenRequests) {
-            setTimeout(() => request(...arguments), delayBetweenRequests - timeSinceLastRequest);
             return;
         }
 
-        lastRequest.time = new Date();
-        lastRequest.limited = false;
+        // Add the request to the queue if another one is processing.
+        if (request.pending) {
+            const args = Array.prototype.slice.call(arguments);
 
-        setLocalStorageItem(requestStorageHash, JSON.stringify(lastRequest));
+            request.queue.push(() => request(...args));
+
+            return;
+        }
+
+        request.pending = true;
 
         $.ajax({
             url: url,
+
             type: options.method,
+
             data: options.data,
-            success: function (data, statusMessage, xhr) {
-                if (xhr.status === 429) {
-                    lastRequest.limited = true;
-                    setLocalStorageItem(requestStorageHash, JSON.stringify(lastRequest));
-                }
 
-                if (xhr.status >= 400) {
-                    const error = new Error('HTTP 错误');
-                    error.statusCode = xhr.status;
+            dataType: options.responseType,
 
-                    callback(error, data);
-                } else {
-                    callback(null, data)
-                }
+            /**
+             *
+             * @param {*} data - parsed response data, if the request was successful.
+             * @param {string} statusText - one of `success`, `notmodified`, `nocontent`.
+             * @param {XMLHttpRequest} xhr - XMLHttpRequest object with additional jQuery properties.
+             */
+            success: function (data, statusText, xhr) {
+                setTimeout(() => callback(null, data), 0);
             },
-            error: (xhr) => {
-                if (xhr.status === 429) {
-                    lastRequest.limited = true;
-                    setLocalStorageItem(requestStorageHash, JSON.stringify(lastRequest));
+
+            /**
+             *
+             * @param {XMLHttpRequest} xhr - XMLHttpRequest object with additional jQuery properties.
+             * @param {string} statusText - one of `error`, `abort`, `timeout` or `parsererror`.
+             * @param {string} httpErrorText - textual portion of the HTTP status, in context of HTTP/2 it may be empty string.
+             */
+            error: (xhr, statusText, httpErrorText) => {
+                const error = new Error(`Request failed with status ${xhr.status || 0} (${statusText === 'error' ? 'http error' : statusText})`);
+
+                error.url = url;
+                error.method = options.method;
+                error.errorText = statusText || '';
+                error.statusCode = xhr.status || 0;
+                error.responseText = xhr.responseText || '';
+
+                setTimeout(() => callback(error, null), 0);
+            },
+
+            /**
+             * @param {XMLHttpRequest} xhr - XMLHttpRequest object with additional jQuery properties.
+             * @param {string} statusText - one of `success`, `notmodified`, `nocontent`, `error`, `timeout`, `abort`, or `parsererror`.
+             */
+            complete: (xhr, statusText) => {
+                let delay = 300; // Short delay to avoid hammering the server.
+
+                // Slow down market requests to avoid hitting the rate limits.
+                if (url.startsWith('https://steamcommunity.com/market/')) {
+                    delay = 1000;
                 }
 
-                const error = new Error('请求失败');
-                error.statusCode = xhr.status;
+                // Better to wait for a bit longer if we hit an error.
+                if (xhr.status === 0 || xhr.status >= 400 || statusText === 'error') {
+                    delay = 5000;
+                }
 
-                callback(error);
-            },
-            dataType: options.responseType
+                // Probably something broken, better to stop here.
+                if ([400, 401, 403, 404, 405, 429].includes(xhr.status)) {
+                    if (request.errors++ === 0) {
+                        setTimeout(() => request.errors = 0, 5 * 60 * 1000);
+                    }
+
+                    if (request.errors >= 5) {
+                        request.stopped = true;
+                        request.errors = 0;
+                    }
+                }
+
+                const next = () => {
+                    request.pending = false;
+                    request.queue.shift()?.();
+                }
+
+                setTimeout(next, delay);
+            }
         });
     };
 
@@ -1269,7 +1314,7 @@
 
         function onQueueDrain() {
             if (itemQueue.length() == 0 && sellQueue.length() == 0 && scrapQueue.length() == 0 && boosterQueue.length() == 0) {
-                $('#inventory_items_spinner').remove();
+                removeSpinner();
             }
         }
 
@@ -1356,141 +1401,133 @@
         });
 
         function sellAllItems() {
-            loadAllInventories().then(
-                () => {
-                    const items = getInventoryItems();
-                    const filteredItems = [];
+            renderSpinner('正在加载库存物品');
 
-                    items.forEach((item) => {
-                        if (!item.marketable) {
-                            return;
-                        }
+            loadAllInventories().then(() => {
+                removeSpinner();
 
-                        filteredItems.push(item);
-                    });
+                const items = getInventoryItems();
+                const filteredItems = [];
 
-                    sellItems(filteredItems);
-                },
-                () => {
-                    logDOM('无法检索库存...');
-                }
-            );
+                items.forEach((item) => {
+                    if (!item.marketable) {
+                        return;
+                    }
+
+                    filteredItems.push(item);
+                });
+
+                sellItems(filteredItems);
+            });
         }
 
         function sellAllDuplicateItems() {
-            loadAllInventories().then(
-                () => {
-                    const items = getInventoryItems();
-                    const marketableItems = [];
-                    let filteredItems = [];
+            renderSpinner('正在加载库存物品');
 
-                    items.forEach((item) => {
-                        if (!item.marketable) {
-                            return;
-                        }
+            loadAllInventories().then(() => {
+                removeSpinner();
 
-                        marketableItems.push(item);
-                    });
+                const items = getInventoryItems();
+                const marketableItems = [];
+                let filteredItems = [];
 
-                    filteredItems = marketableItems.filter((e, i) => marketableItems.map((m) => m.classid).indexOf(e.classid) !== i);
+                items.forEach((item) => {
+                    if (!item.marketable) {
+                        return;
+                    }
 
-                    sellItems(filteredItems);
-                },
-                () => {
-                    logDOM('无法检索库存...');
-                }
-            );
+                    marketableItems.push(item);
+                });
+
+                filteredItems = marketableItems.filter((e, i) => marketableItems.map((m) => m.classid).indexOf(e.classid) !== i);
+
+                sellItems(filteredItems);
+            });
         }
 
         function gemAllDuplicateItems() {
-            loadAllInventories().then(
-                () => {
-                    const items = getInventoryItems();
-                    let filteredItems = [];
-                    let numberOfQueuedItems = 0;
+            renderSpinner('正在加载库存物品');
 
-                    filteredItems = items.filter((e, i) => items.map((m) => m.classid).indexOf(e.classid) !== i);
+            loadAllInventories().then(() => {
+                removeSpinner();
 
-                    filteredItems.forEach((item) => {
-                        if (item.queued != null) {
-                            return;
-                        }
+                const items = getInventoryItems();
+                let filteredItems = [];
+                let numberOfQueuedItems = 0;
 
-                        if (item.owner_actions == null) {
-                            return;
-                        }
+                filteredItems = items.filter((e, i) => items.map((m) => m.classid).indexOf(e.classid) !== i);
 
-                        let canTurnIntoGems = false;
-                        for (const owner_action in item.owner_actions) {
-                            if (item.owner_actions[owner_action].link != null && item.owner_actions[owner_action].link.includes('GetGooValue')) {
-                                canTurnIntoGems = true;
-                            }
-                        }
-
-                        if (!canTurnIntoGems) {
-                            return;
-                        }
-
-                        item.queued = true;
-                        scrapQueue.push(item);
-                        numberOfQueuedItems++;
-                    });
-
-                    if (numberOfQueuedItems > 0) {
-                        totalNumberOfQueuedItems += numberOfQueuedItems;
-
-                        $('#inventory_items_spinner').remove();
-                        $('#inventory_sell_buttons').append(`<div id="inventory_items_spinner">${spinnerBlock
-                            }<div style="text-align:center">正在处理处理 ${numberOfQueuedItems} 个物品</div>` +
-                            '</div>');
+                filteredItems.forEach((item) => {
+                    if (item.queued != null) {
+                        return;
                     }
-                },
-                () => {
-                    logDOM('无法检索库存...');
+
+                    if (item.owner_actions == null) {
+                        return;
+                    }
+
+                    let canTurnIntoGems = false;
+                    for (const owner_action in item.owner_actions) {
+                        if (item.owner_actions[owner_action].link != null && item.owner_actions[owner_action].link.includes('GetGooValue')) {
+                            canTurnIntoGems = true;
+                        }
+                    }
+
+                    if (!canTurnIntoGems) {
+                        return;
+                    }
+
+                    item.queued = true;
+                    scrapQueue.push(item);
+                    numberOfQueuedItems++;
+                });
+
+                if (numberOfQueuedItems > 0) {
+                    totalNumberOfQueuedItems += numberOfQueuedItems;
+
+                    renderSpinner(`正在处理处理 ${numberOfQueuedItems} 个物品`);
                 }
-            );
+            });
         }
 
         function sellAllCards() {
-            loadAllInventories().then(
-                () => {
-                    const items = getInventoryItems();
-                    const filteredItems = [];
+            renderSpinner('正在加载库存物品');
 
-                    items.forEach((item) => {
-                        if (!getIsTradingCard(item) || !item.marketable) {
-                            return;
-                        }
+            loadAllInventories().then(() => {
+                removeSpinner();
 
-                        filteredItems.push(item);
-                    });
+                const items = getInventoryItems();
+                const filteredItems = [];
 
-                    sellItems(filteredItems);
-                },
-                () => {
-                    logDOM('无法检索库存...');
-                }
-            );
+                items.forEach((item) => {
+                    if (!getIsTradingCard(item) || !item.marketable) {
+                        return;
+                    }
+
+                    filteredItems.push(item);
+                });
+
+                sellItems(filteredItems);
+            });
         }
 
         function sellAllCrates() {
-            loadAllInventories().then(
-                () => {
-                    const items = getInventoryItems();
-                    const filteredItems = [];
-                    items.forEach((item) => {
-                        if (!getIsCrate(item) || !item.marketable) {
-                            return;
-                        }
-                        filteredItems.push(item);
-                    });
+            renderSpinner('正在加载库存物品');
 
-                    sellItems(filteredItems);
-                },
-                () => {
-                    logDOM('无法检索库存...');
-                }
-            );
+            loadAllInventories().then(() => {
+                removeSpinner();
+
+                const items = getInventoryItems();
+                const filteredItems = [];
+                items.forEach((item) => {
+                    if (!getIsCrate(item) || !item.marketable) {
+                        return;
+                    }
+                    filteredItems.push(item);
+                });
+
+                sellItems(filteredItems);
+            });
         }
 
         const scrapQueue = async.queue((item, next) => {
@@ -1627,7 +1664,11 @@
         function turnSelectedItemsIntoGems() {
             const ids = getSelectedItems();
 
+            renderSpinner('正在加载库存物品');
+
             loadAllInventories().then(() => {
+                removeSpinner();
+
                 const items = getInventoryItems();
 
                 let numberOfQueuedItems = 0;
@@ -1663,13 +1704,53 @@
                 if (numberOfQueuedItems > 0) {
                     totalNumberOfQueuedItems += numberOfQueuedItems;
 
-                    $('#inventory_items_spinner').remove();
-                    $('#inventory_sell_buttons').append(`<div id="inventory_items_spinner">${spinnerBlock
-                        }<div style="text-align:center">正在处理 ${numberOfQueuedItems} 个物品</div>` +
-                        '</div>');
+                    renderSpinner(`正在处理 ${numberOfQueuedItems} 个物品`);
                 }
-            }, () => {
-                logDOM('无法检索库存...');
+            });
+        }
+
+        // Unpacks all booster packs.
+        function unpackAllBoosterPacks() {
+            renderSpinner('正在加载库存物品');
+
+            loadAllInventories().then(() => {
+                removeSpinner();
+
+                const items = getInventoryItems();
+
+                let numberOfQueuedItems = 0;
+
+                items.forEach((item) => {
+                    if (item.queued != null || item.owner_actions == null) {
+                        return;
+                    }
+
+                    let canOpenBooster = false;
+
+                    for (const owner_action in item.owner_actions) {
+                        if (item.owner_actions[owner_action].link != null && item.owner_actions[owner_action].link.includes('OpenBooster')) {
+                            canOpenBooster = true;
+                        }
+                    }
+
+                    if (!canOpenBooster) {
+                        return;
+                    }
+
+                    item.queued = true;
+                    boosterQueue.push(item);
+                    numberOfQueuedItems++;
+                });
+
+                if (numberOfQueuedItems === 0) {
+                    logDOM('库存中无可拆补充包。');
+
+                    return;
+                }
+
+                totalNumberOfQueuedItems += numberOfQueuedItems;
+
+                renderSpinner(`正在处理 ${numberOfQueuedItems} 个物品`);
             });
         }
 
@@ -1677,17 +1758,17 @@
         function unpackSelectedBoosterPacks() {
             const ids = getSelectedItems();
 
+            renderSpinner('正在加载库存物品');
+
             loadAllInventories().then(() => {
+                removeSpinner();
+
                 const items = getInventoryItems();
 
                 let numberOfQueuedItems = 0;
                 items.forEach((item) => {
                     // Ignored queued items.
-                    if (item.queued != null) {
-                        return;
-                    }
-
-                    if (item.owner_actions == null) {
+                    if (item.queued != null || item.owner_actions == null) {
                         return;
                     }
 
@@ -1713,13 +1794,8 @@
                 if (numberOfQueuedItems > 0) {
                     totalNumberOfQueuedItems += numberOfQueuedItems;
 
-                    $('#inventory_items_spinner').remove();
-                    $('#inventory_sell_buttons').append(`<div id="inventory_items_spinner">${spinnerBlock
-                        }<div style="text-align:center">正在处理 ${numberOfQueuedItems} 个物品</div>` +
-                        '</div>');
+                    renderSpinner(`正在处理 ${numberOfQueuedItems} 个物品`);
                 }
-            }, () => {
-                logDOM('无法检索库存...');
             });
         }
 
@@ -1800,10 +1876,7 @@
             if (numberOfQueuedItems > 0) {
                 totalNumberOfQueuedItems += numberOfQueuedItems;
 
-                $('#inventory_items_spinner').remove();
-                $('#inventory_sell_buttons').append(`<div id="inventory_items_spinner">${spinnerBlock
-                    }<div style="text-align:center">正在处理 ${numberOfQueuedItems} 个物品</div>` +
-                    '</div>');
+                renderSpinner(`正在处理 ${numberOfQueuedItems} 个物品`);
             }
         }
 
@@ -1990,8 +2063,6 @@
                 });
 
                 callback(filteredItems);
-            }, () => {
-                logDOM('无法检索库存...');
             });
         }
 
@@ -2022,8 +2093,6 @@
                 });
 
                 callback(filteredItems);
-            }, () => {
-                logDOM('无法检索库存...');
             });
         }
 
@@ -2054,8 +2123,6 @@
                 });
 
                 callback(filteredItems);
-            }, () => {
-                logDOM('无法检索库存...');
             });
         }
 
@@ -2098,10 +2165,10 @@
             getInventorySelectedBoosterPackItems((items) => {
                 const selectedItems = items.length;
                 if (items.length == 0) {
-                    $('.unpack_booster_packs').hide();
+                    $('.unpack_selected_booster_packs').hide();
                 } else {
-                    $('.unpack_booster_packs').show();
-                    $('.unpack_booster_packs > span').
+                    $('.unpack_selected_booster_packs').show();
+                    $('.unpack_selected_booster_packs > span').
                         text(`拆开 ${selectedItems} 个补充包`);
                 }
             });
@@ -2304,8 +2371,9 @@
                     <a class="btn_green_white_innerfade btn_medium_wide sell_all_cards"><span>出售所有卡牌</span></a>
                     <div class="see_inventory_buttons">
                         <a class="btn_darkblue_white_innerfade btn_medium_wide turn_into_gems" style="display:none"><span>将选中物品分解为宝石</span></a>
+                        <a class="btn_darkblue_white_innerfade btn_medium_wide unpack_all_booster_packs"><span>拆开所有补充包</span></a>
+                        <a class="btn_darkblue_white_innerfade btn_medium_wide unpack_selected_booster_packs" style="display:none"><span>拆开选中的补充包</span></a>
                         <a class="btn_darkblue_white_innerfade btn_medium_wide gem_all_duplicates"><span>将所有重复物品分解为宝石</span></a>
-                        <a class="btn_darkblue_white_innerfade btn_medium_wide unpack_booster_packs" style="display:none"><span>拆开选中的补充包</span></a>
                     </div>
                 `;
             } else if (TF2) {
@@ -2354,7 +2422,8 @@
                 $('.sell_all_cards').on('click', '*', sellAllCards);
                 $('.sell_all_crates').on('click', '*', sellAllCrates);
                 $('.turn_into_gems').on('click', '*', turnSelectedItemsIntoGems);
-                $('.unpack_booster_packs').on('click', '*', unpackSelectedBoosterPacks);
+                $('.unpack_all_booster_packs').on('click', '*', unpackAllBoosterPacks);
+                $('.unpack_selected_booster_packs').on('click', '*', unpackSelectedBoosterPacks);
 
             }
 
@@ -2367,57 +2436,55 @@
                 }
             );
 
-            loadAllInventories().then(
-                () => {
-                    const updateInventoryPrices = function () {
-                        if (getSettingWithDefault(SETTING_INVENTORY_PRICE_LABELS) == 1) {
-                            setInventoryPrices(getInventoryItems());
-                        }
-                    };
+            loadAllInventories().then(() => {
+                const updateInventoryPrices = function () {
+                    if (getSettingWithDefault(SETTING_INVENTORY_PRICE_LABELS) == 1) {
+                        setInventoryPrices(getInventoryItems());
+                    }
+                };
 
-                    // Load after the inventory is loaded.
-                    updateInventoryPrices();
+                // Load after the inventory is loaded.
+                updateInventoryPrices();
 
-                    $('#inventory_pagecontrols').observe(
-                        'childlist',
-                        '*',
-                        () => {
-                            updateInventoryPrices();
-                        }
-                    );
-                },
-                () => {
-                    logDOM('无法检索库存...');
-                }
-            );
+                $('#inventory_pagecontrols').observe(
+                    'childlist',
+                    '*',
+                    () => {
+                        updateInventoryPrices();
+                    }
+                );
+            });
         }
 
         // Loads the specified inventories.
         function loadInventories(inventories) {
-            return new Promise((resolve) => {
-                inventories.reduce(
-                    (promise, inventory) => {
-                        return promise.then(() => {
-                            // return inventory.LoadCompleteInventory().done(() => { });
+            return Promise.all(inventories.map((inventory) => {
+                return new Promise((resolve) => {
+                    // return inventory.LoadCompleteInventory().done(resolve);
 
-                            // Workaround, until Steam fixes the issue with LoadCompleteInventory.
+                    // Workaround, until Steam fixes the issue with LoadCompleteInventory.
 
-                            if (inventory.m_bFullyLoaded) {
-                                return Promise.resolve();
-                            }
+                    if (inventory.m_bFullyLoaded) {
+                        resolve();
 
-                            if (!inventory.m_promiseLoadCompleteInventory) {
-                                inventory.m_promiseLoadCompleteInventory = inventory.LoadUntilConditionMet(() => inventory.m_bFullyLoaded, 2000);
-                            }
+                        return;
+                    }
 
-                            return inventory.m_promiseLoadCompleteInventory.done(() => { });
-                        });
-                    },
-                    Promise.resolve()
-                );
+                    if (!inventory.m_promiseLoadCompleteInventory) {
+                        inventory.m_promiseLoadCompleteInventory = inventory.LoadUntilConditionMet(() => inventory.m_bFullyLoaded, 2000);
+                    }
 
-                resolve();
-            });
+                    return inventory.m_promiseLoadCompleteInventory.done(() => {
+                        const parent = inventory.m_parentInventory;
+
+                        if (parent != null && Object.values(parent.m_rgChildInventories).every(child => child.m_bFullyLoaded)) {
+                            parent.m_bFullyLoaded = true;
+                        }
+
+                        resolve();
+                    });
+                });
+            }));
         }
 
         // Loads all inventories.
@@ -2658,12 +2725,21 @@
             const market_hash_name = getMarketHashName(asset);
             const appid = listing.appid;
 
-            const listingUI = $(getListingFromLists(listing.listingid).elm);
+            let listingUI = getListingFromLists(listing.listingid);
+            if (listingUI == null) {
+                logConsole(`列表物品 ${listing.listingid} 未在列表中找到，跳过。`);
+
+                callback(true, true);
+
+                return;
+            }
+
+            listingUI = $(listingUI.elm);
 
             const game_name = asset.type;
             const price = getPriceValueAsInt($('.market_listing_price > span:nth-child(1) > span:nth-child(1)', listingUI).text());
 
-            if (price <= getSettingWithDefault(SETTING_PRICE_MIN_CHECK_PRICE) * 100) {
+            if (price <= getSettingWithDefault(SETTING_PRICE_MIN_CHECK_PRICE) * 100 || listingUI.hasClass('removing')) {
                 $('.market_listing_my_price', listingUI).last().css('background', COLOR_PRICE_NOT_CHECKED);
                 $('.market_listing_my_price', listingUI).last().prop('title', 'The price is not checked.');
                 listingUI.addClass('not_checked');
@@ -2807,7 +2883,16 @@
         );
 
         function marketOverpricedQueueWorker(item, ignoreErrors, callback) {
-            const listingUI = getListingFromLists(item.listing).elm;
+            let listingUI = getListingFromLists(item.listing)
+            if (listingUI == null) {
+                logConsole(`挂单 ${item.listing} 未在列表中找到，跳过。`);
+
+                callback(true);
+
+                return;
+            }
+
+            listingUI = listingUI.elm;
 
             market.removeListing(
                 item.listing, false,
@@ -3030,7 +3115,8 @@
             addMarketCheckboxes();
 
             // Show the listings again, rendering is done.
-            $('#market_listings_spinner').remove();
+            removeSpinner();
+
             myMarketListings.show();
 
             fillMarketListingsQueue();
@@ -3061,40 +3147,76 @@
                 }
             });
 
-            let totalPriceBuyer = 0;
-            let totalPriceSeller = 0;
-            let totalAmount = 0;
+            let totalSellOrderPriceBuyer = 0;
+            let totalSellOrderPriceSeller = 0;
+            let totalSellOrderAmount = 0;
+
+            let totalBuyOrderPrice = 0;
+            let totalBuyOrderAmount = 0;
 
             // Add the listings to the queue to be checked for the price.
             marketLists.flatMap(list => list.items).forEach(item => {
-                const listingid = replaceNonNumbers(item.values().market_listing_item_name);
-                const assetInfo = getAssetInfoFromListingId(listingid);
+                const isBuyOrder = item.elm.id.startsWith('mbuyorder_') || item.elm.id.startsWith('mybuyorder_');
+                const isSellOrder = item.elm.id.startsWith('mylisting_');
 
-                if (assetInfo.appid === undefined) {
-                    logConsole(`Skipping listing ${listingid} (no sell order)`);
+                if (isSellOrder) {
+                    const listingid = replaceNonNumbers(item.values().market_listing_item_name);
+                    const assetInfo = getAssetInfoFromListingId(listingid);
+
+                    if (assetInfo.appid === undefined) {
+                        logConsole(`跳过列表物品 ${listingid} (appid 未定义)`);
+                        return;
+                    }
+
+                    totalSellOrderAmount += assetInfo.amount;
+
+                    if (!isNaN(assetInfo.priceBuyer)) {
+                        totalSellOrderPriceBuyer += assetInfo.priceBuyer * assetInfo.amount;
+                    }
+                    if (!isNaN(assetInfo.priceSeller)) {
+                        totalSellOrderPriceSeller += assetInfo.priceSeller * assetInfo.amount;
+                    }
+
+                    marketListingsQueue.push({
+                        listingid,
+                        appid: assetInfo.appid,
+                        contextid: assetInfo.contextid,
+                        assetid: assetInfo.assetid
+                    });
+
                     return;
                 }
 
-                totalAmount += assetInfo.amount;
+                if (isBuyOrder) {
+                    const listingid = replaceNonNumbers(item.values().market_listing_item_name);
+                    const assetInfo = getAssetInfoFromBuyOrderId(listingid);
 
-                if (!isNaN(assetInfo.priceBuyer)) {
-                    totalPriceBuyer += assetInfo.priceBuyer * assetInfo.amount;
-                }
-                if (!isNaN(assetInfo.priceSeller)) {
-                    totalPriceSeller += assetInfo.priceSeller * assetInfo.amount;
+                    if (assetInfo.amount === undefined) {
+                        logConsole(`跳过列表物品 ${listingid} (数量未定义)`);
+                        return;
+                    }
+
+                    totalBuyOrderAmount += assetInfo.amount;
+
+                    if (!isNaN(assetInfo.price)) {
+                        totalBuyOrderPrice += assetInfo.price * assetInfo.amount;
+                    }
+
+                    return;
                 }
 
-                marketListingsQueue.push({
-                    listingid,
-                    appid: assetInfo.appid,
-                    contextid: assetInfo.contextid,
-                    assetid: assetInfo.assetid
-                });
-                increaseMarketProgressMax();
+                logConsole(`跳过物品 ${item.elm.id} (非 买/卖 订单)`);
             });
 
-            $('#my_market_selllistings_number').append(`<span id="my_market_sellistings_total_amount"> [${totalAmount}]</span>`)
-                .append(`<span id="my_market_sellistings_total_price">, ${formatPrice(totalPriceBuyer)} ➤ ${formatPrice(totalPriceSeller)}</span>`);
+            if (totalSellOrderAmount > 0) {
+                increaseMarketProgressMax();
+            }
+
+            $('#my_market_selllistings_number').append(`<span id="my_market_sell_listings_total_amount"> [${totalSellOrderAmount}]</span>`)
+                .append(`<span id="my_market_sell_listings_total_price">, ${formatPrice(totalSellOrderPriceBuyer)} ➤ ${formatPrice(totalSellOrderPriceSeller)}</span>`);
+
+            $('#my_market_buylistings_number').append(`<span id="my_market_buy_listings_total_amount"> [${totalBuyOrderAmount}]</span>`)
+                .append(`<span id="my_market_buy_listings_total_price">, ${formatPrice(totalBuyOrderPrice)}</span>`);
         }
 
 
@@ -3126,6 +3248,23 @@
                 priceBuyer,
                 priceSeller
             };
+        }
+
+        function getAssetInfoFromBuyOrderId(orderid) {
+            const listing = getListingFromLists(orderid);
+
+            if (listing == null) {
+                return {};
+            }
+
+            if (!listing.elm.id.startsWith('mbuyorder_') && !listing.elm.id.startsWith('mybuyorder_')) {
+                return {};
+            }
+
+            const amount = parseInt($('.market_listing_buyorder_qty', listing.elm).text().trim());
+            const price = getPriceValueAsInt($('.market_listing_price', listing.elm)[0].innerText);
+
+            return { amount, price };
         }
 
         // Adds market item listings.
@@ -3201,9 +3340,7 @@
                 $('.market_pagesize_options').hide();
 
                 // Show the spinner so the user knows that something is going on.
-                $('.my_market_header').eq(0).append(`<div id="market_listings_spinner">${spinnerBlock
-                    }<div style="text-align:center">正在加载交易列表</div>` +
-                    '</div>');
+                renderSpinner('正在加载市场列表');
 
                 while (currentCount < totalCount) {
                     marketListingsItemsQueue.push(currentCount);
@@ -3220,9 +3357,10 @@
 
                     $(this).children().last().wrap('<div class="market_listing_see"></div>');
                     const marketListing = $('.market_listing_see', this).last();
+                    const container = $('.market_listing_row', marketListing)?.parent();
 
-                    if (marketListing[0].childElementCount > 0) {
-                        addMarketListings(marketListing);
+                    if (marketListing[0]?.childElementCount > 0 && container != null && container.length > 0) {
+                        addMarketListings(container);
                         sortMarketListings($(this), false, false, true);
                     }
                 });
@@ -3271,7 +3409,7 @@
         function sortMarketListings(elem, isPrice, isDateOrQuantity, isName) {
             const list = getListFromContainer(elem);
             if (list == null) {
-                console.log('无效参数，找不到匹配元素的列表。');
+                logConsole('无效参数，找不到匹配元素的列表。');
                 return;
             }
 
@@ -3279,8 +3417,8 @@
             let asc = true;
 
             // (Re)set the asc/desc arrows.
-            const arrow_down = '🡻';
-            const arrow_up = '🡹';
+            const arrow_down = '▼';
+            const arrow_up = '▲';
 
             $('.market_listing_table_header > span', elem).each(function () {
                 if ($(this).hasClass('market_listing_edit_buttons')) {
@@ -3393,7 +3531,7 @@
 
         function getListFromContainer(group) {
             for (let i = 0; i < marketLists.length; i++) {
-                if (group.attr('id') == $(marketLists[i].listContainer).attr('id')) {
+                if (group[0].contains(marketLists[i].listContainer)) {
                     return marketLists[i];
                 }
             }
@@ -3479,6 +3617,10 @@
                 const selectionGroup = $(this).parent().parent().parent().parent();
                 const marketList = getListFromContainer(selectionGroup);
 
+                if (marketList == null) {
+                    return;
+                }
+
                 const invert = $('.market_select_item:checked', selectionGroup).length == $('.market_select_item', selectionGroup).length;
 
                 for (let i = 0; i < marketList.matchingItems.length; i++) {
@@ -3491,6 +3633,10 @@
             $('.select_five_from_page').on('click', '*', function () {
                 const selectionGroup = $(this).parent().parent().parent().parent();
                 const marketList = getListFromContainer(selectionGroup);
+
+                if (marketList == null) {
+                    return;
+                }
 
                 let count = 0;
                 for (let i = 0; i < marketList.matchingItems.length; i++) {
@@ -3510,6 +3656,10 @@
                 const selectionGroup = $(this).parent().parent().parent().parent();
                 const marketList = getListFromContainer(selectionGroup);
 
+                if (marketList == null) {
+                    return;
+                }
+
                 let count = 0;
                 for (let i = 0; i < marketList.matchingItems.length; i++) {
                     if (count == 25) {
@@ -3527,6 +3677,10 @@
             $('.select_overpriced').on('click', '*', function () {
                 const selectionGroup = $(this).parent().parent().parent().parent();
                 const marketList = getListFromContainer(selectionGroup);
+
+                if (marketList == null) {
+                    return;
+                }
 
                 for (let i = 0; i < marketList.matchingItems.length; i++) {
                     if ($(marketList.matchingItems[i].elm).hasClass('overpriced')) {
@@ -3547,9 +3701,17 @@
                 const selectionGroup = $(this).parent().parent().parent().parent();
                 const marketList = getListFromContainer(selectionGroup);
 
+                if (marketList == null) {
+                    return;
+                }
+
                 for (let i = 0; i < marketList.matchingItems.length; i++) {
                     if ($('.market_select_item', $(marketList.matchingItems[i].elm)).prop('checked')) {
                         const listingid = replaceNonNumbers(marketList.matchingItems[i].values().market_listing_item_name);
+
+                        const listingUI = $(getListingFromLists(listingid).elm);
+                        listingUI.addClass('removing');
+
                         marketRemoveQueue.push(listingid);
                         increaseMarketProgressMax();
                     }
@@ -3564,6 +3726,10 @@
                 const selectionGroup = $(this).parent().parent().parent().parent();
                 const marketList = getListFromContainer(selectionGroup);
 
+                if (marketList == null) {
+                    return;
+                }
+
                 for (let i = 0; i < marketList.matchingItems.length; i++) {
                     if ($(marketList.matchingItems[i].elm).hasClass('overpriced')) {
                         const listingid = replaceNonNumbers(marketList.matchingItems[i].values().market_listing_item_name);
@@ -3575,6 +3741,10 @@
             $('.relist_selected').on('click', '*', function () {
                 const selectionGroup = $(this).parent().parent().parent().parent();
                 const marketList = getListFromContainer(selectionGroup);
+
+                if (marketList == null) {
+                    return;
+                }
 
                 for (let i = 0; i < marketList.matchingItems.length; i++) {
                     if ($(marketList.matchingItems[i].elm) && $('.market_select_item', $(marketList.matchingItems[i].elm)).prop('checked')) {
@@ -3693,7 +3863,7 @@
                 return a[1] - b[1];
             }).reverse();
 
-            let totalText = `<strong>物品种类数：${sortable.length}，价值 ${formatPrice(totalPrice)}<br/><br/></strong>`;
+            let totalText = `<strong>唯一物品数：${sortable.length}，价值 ${formatPrice(totalPrice)}<br/><br/></strong>`;
             let totalNumOfItems = 0;
             for (let i = 0; i < sortable.length; i++) {
                 totalText += `${sortable[i][1]}x ${sortable[i][0]}<br/>`;
@@ -3801,6 +3971,7 @@
                 });
             });
         }
+
         // On counter offers, we need to wait until 'Change offer' is pressed
         if (location.pathname !== '/tradeoffer/new/' && location.pathname !== '/tradeoffer/new') {
             $('.modify_trade_offer').one('click', '*', () => {
@@ -3990,6 +4161,58 @@
         style.type = 'text/css';
         style.innerHTML = css;
         head.appendChild(style);
+    }
+
+    function renderSpinner(text) {
+        const { container, spinnerid } = getSpinnerContext();
+        if (container == null || spinnerid == null) {
+            return;
+        }
+
+        text = (text || '').trim();
+        removeSpinner();
+
+        container.append(`
+            <div id="${spinnerid}">
+                <div class="spinner">
+                    <div class="rect1"></div>
+                    <div class="rect2"></div>
+                    <div class="rect3"></div>
+                    <div class="rect4"></div>
+                    <div class="rect5"></div>
+                </div>
+                ${text ? `<div style="text-align:center">${text}</div>` : ''}
+            </div>`);
+    }
+
+    function removeSpinner() {
+        const { container, spinnerid } = getSpinnerContext();
+        if (container == null || spinnerid == null) {
+            return;
+        }
+
+        $(`#${spinnerid}`, container).remove();
+    }
+
+    function getSpinnerContext() {
+        let container = null;
+        let spinnerid = null;
+
+        switch (currentPage) {
+            case PAGE_MARKET:
+                container = $('.my_market_header').eq(0);
+                spinnerid = 'market_listings_spinner';
+                break;
+            case PAGE_INVENTORY:
+                container = $('#inventory_sell_buttons');
+                spinnerid = 'inventory_items_spinner';
+                break;
+            default:
+                break;
+        }
+
+        container = container && container.length > 0 ? container : null;
+        return { container, spinnerid };
     }
 
     $.fn.delayedEach = function (timeout, callback, continuous) {
