@@ -4,7 +4,7 @@
 // @namespace    https://github.com/Nuklon
 // @author       Nuklon
 // @license      MIT
-// @version      7.1.17
+// @version      7.1.18
 // @description  增强 Steam 库存和 Steam 市场功能
 // @match        *://steamcommunity.com/id/*/inventory*
 // @match        *://steamcommunity.com/profiles/*/inventory*
@@ -842,7 +842,7 @@
 
     // Get the item name id from a market item.
     SteamMarket.prototype.getCurrentMarketItemNameId = function (appid, market_name, callback) {
-        const url = `${window.location.origin}/market/listings/${appid}/${escapeURI(market_name)}`;
+        const url = `${window.location.origin}/market/listings/${appid}/${encodeURIComponent(market_name)}`;
 
         const options = { method: 'GET' };
 
@@ -1013,18 +1013,6 @@
         return feeInfo.amount;
     };
     //#endregion
-
-    // Cannot use encodeURI / encodeURIComponent, Steam only escapes certain characters.
-    function escapeURI(name) {
-        let previousName = '';
-        while (previousName != name) {
-            previousName = name;
-            name = name.replace('?', '%3F').
-                replace('#', '%23').
-                replace('	', '%09');
-        }
-        return name;
-    }
 
     //#region Steam Market / Inventory helpers
     function getMarketHashName(item) {
@@ -2224,7 +2212,7 @@
 
             // Move market link to a button
             ownerActions.append(`<a class="btn_small btn_grey_white_innerfade" href="/market/listings/${appid}/${encodeURIComponent(market_hash_name)}"><span>在社区市场中查看</span></a>`);
-            $(`#${item_info_id}_item_market_actions > div:nth-child(1) > div:nth-child(1)`).hide();
+            $(`#${item_info_id} >div > div > div > div > div:last-child > div:first-child`).hide();
 
             // ownerActions is hidden on other games' inventories, we need to show it to have a "Market" button visible
             ownerActions.show();
@@ -2269,7 +2257,7 @@
                         </div>
                     </div>`);
 
-                    $(`#${item_info_id}_item_market_actions > div`).after(groupMain);
+                    $(`#${item_info_id} > div >div >div > div > div:first-child`).after(groupMain);
 
                     // Generate quick sell buttons.
                     let prices = [];
@@ -2288,7 +2276,7 @@
 
                     prices = prices.filter((v, i) => prices.indexOf(v) === i).sort((a, b) => a - b);
 
-                    let buttons = ' ';
+                    let buttons = '<div>';
                     prices.forEach((e) => {
                         buttons += `<a class="item_market_action_button item_market_action_button_green quick_sell" id="quick_sell${e}">
                             <span class="item_market_action_button_edge item_market_action_button_left"></span>
@@ -2297,10 +2285,11 @@
                             <span class="item_market_action_button_preload"></span>
                         </a>`;
                     });
+                    buttons += '</div>';
 
-                    $(`#${item_info_id}_item_market_actions`, item_info).append(buttons);
+                    $(`#${item_info_id} >div > div > div > div > div:last-child`).append(buttons);
 
-                    $(`#${item_info_id}_item_market_actions`, item_info).append(`<div style="display:flex">
+                    $(`#${item_info_id} >div > div > div > div > div:last-child`).append(`<div style="display:flex">
                         <input id="quick_sell_input" style="background-color: black;color: white;border: transparent;max-width:65px;text-align:center;" type="number" value="${histogram.lowest_sell_order / 100}" step="0.01" />&nbsp;
                         <a class="item_market_action_button item_market_action_button_green quick_sell_custom">
                             <span class="item_market_action_button_edge item_market_action_button_left"></span>
@@ -2328,7 +2317,7 @@
                     $('.quick_sell_custom').on(
                         'click',
                         () => {
-                            let price = $('#quick_sell_input', $(`#${item_info_id}_item_market_actions`, item_info)).val() * 100;
+                            let price = $('#quick_sell_input', $(`#${item_info_id} >div > div > div > div > div:last-child`)).val() * 100;
                             price = market.getPriceBeforeFees(price);
 
                             totalNumberOfQueuedItems++;
@@ -2456,47 +2445,15 @@
             });
         }
 
-        // Loads the specified inventories.
-        function loadInventories(inventories) {
-            return Promise.all(inventories.map((inventory) => {
-                return new Promise((resolve) => {
-                    // return inventory.LoadCompleteInventory().done(resolve);
-
-                    // Workaround, until Steam fixes the issue with LoadCompleteInventory.
-
-                    if (inventory.m_bFullyLoaded) {
-                        resolve();
-
-                        return;
-                    }
-
-                    if (!inventory.m_promiseLoadCompleteInventory) {
-                        inventory.m_promiseLoadCompleteInventory = inventory.LoadUntilConditionMet(() => inventory.m_bFullyLoaded, 2000);
-                    }
-
-                    return inventory.m_promiseLoadCompleteInventory.done(() => {
-                        const parent = inventory.m_parentInventory;
-
-                        if (parent != null && Object.values(parent.m_rgChildInventories).every(child => child.m_bFullyLoaded)) {
-                            parent.m_bFullyLoaded = true;
-                        }
-
-                        resolve();
-                    });
-                });
-            }));
-        }
-
         // Loads all inventories.
-        function loadAllInventories() {
-            const items = [];
+        async function loadAllInventories() {
+            const main = getActiveInventory();
 
-            for (const child in getActiveInventory().m_rgChildInventories) {
-                items.push(getActiveInventory().m_rgChildInventories[child]);
+            const childs = Object.values(main.m_rgChildInventories);
+
+            for (const inventory of [...childs, main]) {
+                await new Promise((resolve) => inventory.LoadCompleteInventory().done(resolve));
             }
-            items.push(getActiveInventory());
-
-            return loadInventories(items);
         }
 
         // Gets the inventory items from the active inventory.
@@ -4084,7 +4041,7 @@
         .trade_offer_buttons { margin-top: 12px; }
         .market_commodity_orders_table { font-size:12px; font-family: "Motiva Sans", Sans-serif; font-weight: 300; }
         .market_commodity_orders_table th { padding-left: 10px; }
-        #listings_group { display: flex; justify-content: space-between; margin-bottom: 8px; }
+        #listings_group { display: flex; justify-content: center; margin-bottom: 8px; }
         #listings_sell { text-align: right; color: #589328; font-weight:600; }
         #listings_buy { text-align: right; color: #589328; font-weight:600; }
         .market_listing_my_price { height: 50px; padding-right:6px; }
@@ -4126,8 +4083,8 @@
         #see_settings_modal select, #see_settings_modal input[type="number"] { background-color: black; color: white; border: transparent; padding: 4px 8px; }
         #see_settings_modal input[type="number"] { width: 100px; }
         #see_settings_modal input[type="checkbox"] { width: 16px; height: 16px; vertical-align: middle; accent-color: #000; }
-        .inventory_iteminfo .market_commodity_orders_table th {min-width: 69px; padding: 4px}
-        .inventory_iteminfo .market_commodity_orders_table td {min-width: initial}
+        .market_commodity_orders_table th {min-width: 69px; padding: 4px}
+        .market_commodity_orders_table td {min-width: initial}
         @media screen and (max-width: 910px) {
             html.responsive .view_inventory_logo {max-height: unset !important;}
         }
