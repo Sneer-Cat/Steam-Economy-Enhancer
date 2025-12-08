@@ -4,7 +4,7 @@
 // @namespace    https://github.com/Nuklon
 // @author       Nuklon
 // @license      MIT
-// @version      7.1.20
+// @version      7.1.22
 // @description  增强 Steam 库存和 Steam 市场功能
 // @match        *://steamcommunity.com/id/*/inventory*
 // @match        *://steamcommunity.com/profiles/*/inventory*
@@ -941,7 +941,6 @@
                         language: 'schinese',
                         currency: currencyId,
                         item_nameid: item_nameid,
-                        two_factor: 0
                     }
                 };
 
@@ -1236,7 +1235,10 @@
             walletInfo['wallet_fee_minimum']
         ) +
             parseInt(walletInfo['wallet_fee_base'])));
-        const nPublisherFee = parseInt(Math.floor(publisherFee > 0 ? Math.max(receivedAmount * publisherFee, 1) : 0));
+        // https://github.com/Nuklon/Steam-Economy-Enhancer/issues/312
+        // const nPublisherFee = parseInt(Math.floor(publisherFee > 0 ? Math.max(receivedAmount * publisherFee, 1) : 0));
+        // not a great one, but it should work.
+        const nPublisherFee = parseInt(Math.floor(publisherFee > 0 ? Math.max(receivedAmount * publisherFee, walletInfo['wallet_market_minimum']) : 0));
         const nAmountToSend = receivedAmount + nSteamFee + nPublisherFee;
         return {
             steam_fee: nSteamFee,
@@ -2169,6 +2171,10 @@
         }
 
         async function updateInventorySelection(selectedItem) {
+            if (getSettingWithDefault(SETTING_QUICK_SELL_BUTTONS) != 1) {
+                return;
+            }
+
             const item_info = $(`#iteminfo${unsafeWindow.iActiveSelectView}`);
 
             if (!item_info.length) {
@@ -2179,24 +2185,12 @@
                 return;
             }
 
-            var timeDelayed = 0;
+            let timeDelayed = 0;
 
             // Wait until item_info is loaded.
             while (timeDelayed < 2500 && item_info.find('a[href^="https://steamcommunity.com/market/listings/"]').length == 0) {
                 await delay(100);
                 timeDelayed += 100;
-            }
-
-            // Use a 'hard' item id instead of relying on the selected item_info (sometimes Steam temporarily changes the correct item (?)).
-            const item_info_id = item_info.attr('id');
-
-            // Move scrap to bottom, this is of little interest.
-            const scrap = $(`#${item_info_id}_scrap_content`);
-            scrap.next().insertBefore(scrap);
-
-            // Skip unmarketable items
-            if (!selectedItem.marketable) {
-                return;
             }
 
             const market_hash_name = getMarketHashName(selectedItem);
@@ -2212,22 +2206,15 @@
                 }
             };
 
-            const marketLink = `https://steamcommunity.com/market/listings/${appid}/${encodeURIComponent(market_hash_name)}`;
-
-            const baseLink = $(`a[href^="${marketLink}"]`, item_info);
-            const ownerActions = baseLink.parent().parent();
-            baseLink.hide();
-
-            // Add market link to a button
-            ownerActions.append(`<div style='display:flex'><a class="btn_small btn_grey_white_innerfade" href="${marketLink}"><span>在社区市场中查看</span></a></div>`);
-
             const isBoosterPack = selectedItem.name.toLowerCase().endsWith('booster pack') || selectedItem.name.endsWith('补充包');
             if (isBoosterPack) {
                 const tradingCardsUrl = `/market/search?q=&category_753_Game%5B%5D=tag_app_${selectedItem.market_fee_app}&category_753_item_class%5B%5D=tag_item_class_2&appid=753`;
-                ownerActions.append(`<div style='display:flex'><a class="btn_small btn_grey_white_innerfade" href="${tradingCardsUrl}"><span>在社区市场中查看集换式卡牌</span></a></div>`);
+                const communityHeader = $('h1', item_info).next().find('span').eq(0);
+                communityHeader.replaceWith(`<a href="${tradingCardsUrl}"><span>${communityHeader.text()}</span></a>`);
             }
 
-            if (getSettingWithDefault(SETTING_QUICK_SELL_BUTTONS) != 1) {
+            // Skip unmarketable items
+            if (!selectedItem.marketable) {
                 return;
             }
 
@@ -2235,6 +2222,10 @@
             if (selectedItem.queued != null) {
                 return;
             }
+
+            const marketLink = `https://steamcommunity.com/market/listings/${appid}/${encodeURIComponent(market_hash_name)}`;
+            const baseLink = $(`a[href^="${marketLink}"]`, item_info);
+            const ownerActions = baseLink.parent().parent();
 
             market.getItemOrdersHistogram(
                 item,
