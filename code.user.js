@@ -4,7 +4,7 @@
 // @namespace    https://github.com/Nuklon
 // @author       Nuklon
 // @license      MIT
-// @version      7.3.0
+// @version      7.3.1
 // @description  增强 Steam 库存和 Steam 市场功能
 // @match        *://steamcommunity.com/id/*/inventory*
 // @match        *://steamcommunity.com/profiles/*/inventory*
@@ -499,13 +499,14 @@
 
         const shouldUseAverage = getSettingWithDefault(SETTING_PRICE_ALGORITHM) == 1;
         const shouldUseBuyOrder = getSettingWithDefault(SETTING_PRICE_ALGORITHM) == 3;
+		const shouldUseHistory = getSettingWithDefault(SETTING_PRICE_ALGORITHM) == 4;
 
         // If the highest average price is lower than the first listing, return the offset + that listing.
         // Otherwise, use the highest average price instead.
         let calculatedPrice = 0;
         if (shouldUseBuyOrder && buyPrice !== -2) {
             calculatedPrice = buyPrice;
-        } else if (historyPrice < listingPrice || !shouldUseAverage) {
+        } else if ((historyPrice < listingPrice || !shouldUseAverage) && !shouldUseHistory) {
             calculatedPrice = listingPrice;
         } else {
             calculatedPrice = historyPrice;
@@ -528,9 +529,8 @@
         // Keep our minimum and maximum in mind.
         calculatedPrice = clamp(calculatedPrice, minPriceBeforeFees, maxPriceBeforeFees);
 
-
         // In case there's a buy order higher than the calculated price.
-        if (typeof orderbook !== 'undefined' && orderbook != null && orderbook.highest_buy_order != null) {
+        if (!shouldUseHistory && typeof orderbook !== 'undefined' && orderbook != null && orderbook.highest_buy_order != null) {
             const buyOrderPrice = market.getPriceBeforeFees(orderbook.highest_buy_order);
             if (buyOrderPrice > calculatedPrice) {
                 calculatedPrice = buyOrderPrice;
@@ -620,7 +620,7 @@
     // Prices are ordered by oldest to most recent.
     // Price is inclusive of fees.
     SteamMarket.prototype.getPriceHistory = function (item, cache, callback) {
-        const shouldUseAverage = getSettingWithDefault(SETTING_PRICE_ALGORITHM) == 1;
+        const shouldUseAverage = (getSettingWithDefault(SETTING_PRICE_ALGORITHM) == 1) || (getSettingWithDefault(SETTING_PRICE_ALGORITHM) == 4);
 
         if (!shouldUseAverage) {
             // The price history is only used by the "average price" calculation
@@ -965,7 +965,8 @@
 
         price = Math.round(price);
         const feeInfo = CalculateFeeAmount(price, publisherFee, this.walletInfo);
-        return price - feeInfo.fees;
+
+		return (price > feeInfo.fees) ? price - feeInfo.fees : 1;
     };
 
     // Calculate the buyer price from the seller price
@@ -2439,9 +2440,8 @@
                 // Load after the inventory is loaded.
                 updateInventoryPrices();
 
-                $('#inventory_pagecontrols').observe(
+                $('#pagecontrol_cur').observe(
                     'childlist',
-                    '*',
                     () => {
                         updateInventoryPrices();
                     }
@@ -3938,9 +3938,8 @@
             // Load after the inventory is loaded.
             updateInventoryPrices();
 
-            $('#inventory_pagecontrols').observe(
+            $('#pagecontrol_cur').observe(
                 'childlist',
-                '*',
                 () => {
                     updateInventoryPrices();
                 }
@@ -3990,6 +3989,7 @@
                     <option value="1" ${getSettingWithDefault(SETTING_PRICE_ALGORITHM) == 1 ? 'selected="selected"' : ''}>历史均价 和 最低售价 之间的最大值</option>
                     <option value="2" ${getSettingWithDefault(SETTING_PRICE_ALGORITHM) == 2 ? 'selected="selected"' : ''}>最低售价</option>
                     <option value="3" ${getSettingWithDefault(SETTING_PRICE_ALGORITHM) == 3 ? 'selected="selected"' : ''}>当前 最高买入价 或 最低售价</option>
+					<option value="4" ${getSettingWithDefault(SETTING_PRICE_ALGORITHM) == 4 ? 'selected="selected"' : ''}>仅历史均价</option>
                 </select>
             </div>
             <div style="margin-top:6px;">
