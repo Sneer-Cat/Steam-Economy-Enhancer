@@ -4,7 +4,7 @@
 // @namespace    https://github.com/Nuklon
 // @author       Nuklon
 // @license      MIT
-// @version      7.3.1
+// @version      7.3.1.1
 // @description  增强 Steam 库存和 Steam 市场功能
 // @match        *://steamcommunity.com/id/*/inventory*
 // @match        *://steamcommunity.com/profiles/*/inventory*
@@ -928,7 +928,7 @@
                     return;
                 }
 
-                const orderbook = buildOrderBook(data);
+                const orderbook = buildOrderBook(data.data);
                 if (orderbook == null) {
                     callback(ERROR_DATA, null);
                     return;
