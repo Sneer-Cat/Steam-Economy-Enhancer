@@ -4,7 +4,7 @@
 // @namespace    https://github.com/Nuklon
 // @author       Nuklon
 // @license      MIT
-// @version      7.3.2
+// @version      7.3.2.1
 // @description  增强 Steam 库存和 Steam 市场功能
 // @match        *://steamcommunity.com/id/*/inventory*
 // @match        *://steamcommunity.com/profiles/*/inventory*
@@ -2552,36 +2552,51 @@
             let failed = 0;
             const itemName = item.name || item.description.name;
 
-            // Only get the market orders here, the history is not important to visualize the current prices.
-            market.getOrderBook(
+            // sff: Add getPriceHistory to fix price display when choosing "hisotric average".
+            market.getPriceHistory(
                 item,
                 true,
-                (err, orderbook, cachedListings) => {
+                (err, history, cachedHistory) => {
                     if (err) {
-                        logConsole(`无法获取 ${itemName} 的订单簿`);
+                        logConsole(`无法获取 ${itemName} 的价格历史`);
 
                         if (err != ERROR_SUCCESS) {
                             failed += 1;
                         }
                     }
 
-                    if (failed > 0 && !ignoreErrors) {
-                        return callback(false, cachedListings);
-                    }
+                    // Only get the market orders here, the history is not important to visualize the current prices.
+                    market.getOrderBook(
+                        item,
+                        true,
+                        (err, orderbook, cachedListings) => {
+                            if (err) {
+                                logConsole(`无法获取 ${itemName} 的订单簿`);
 
-                    const sellPrice = calculateSellPriceBeforeFees(null, orderbook, false, 0, 65535);
+                                if (err != ERROR_SUCCESS) {
+                                    failed += 1;
+                                }
+                            }
 
-                    const itemPrice = sellPrice == 65535
-                        ? '∞'
-                        : formatPrice(market.getPriceIncludingFees(sellPrice));
+                            if (failed > 0 && !ignoreErrors) {
+                                return callback(false, cachedHistory && cachedListings);
+                            }
 
-                    const elementName = `${(currentPage == PAGE_TRADEOFFER ? '#item' : '#')}${item.appid}_${item.contextid}_${item.id}`;
-                    const element = $(elementName);
+                            const sellPrice = calculateSellPriceBeforeFees(history, orderbook, false, 0, 65535);
 
-                    $('.inventory_item_price', element).remove();
-                    element.append(`<span class="inventory_item_price price_${sellPrice == 65535 ? 0 : market.getPriceIncludingFees(sellPrice)}">${itemPrice}</span>`);
+                            const itemPrice = sellPrice == 65535
+                                ? '∞'
+                                : formatPrice(market.getPriceIncludingFees(sellPrice));
 
-                    return callback(true, cachedListings);
+                            const elementName = `${(currentPage == PAGE_TRADEOFFER ? '#item' : '#')}${item.appid}_${item.contextid}_${item.id}`;
+                            const element = $(elementName);
+
+                            $('.inventory_item_price', element).remove();
+                            element.append(`<span class="inventory_item_price price_${sellPrice == 65535 ? 0 : market.getPriceIncludingFees(sellPrice)}">${itemPrice}</span>`);
+
+                            return callback(true, cachedHistory && cachedListings);
+                        }
+                    );
                 }
             );
         }
